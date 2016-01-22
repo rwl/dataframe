@@ -18,6 +18,8 @@ library saddle.index;
 
 //import org.saddle.array
 
+import 'dart:typed_data';
+
 import '../array/array.dart';
 
 import 'join_type.dart';
@@ -36,7 +38,8 @@ import 'join_type.dart';
 /*private[saddle]*/ class JoinHelper {
   static JoinResult apply(List<int> leftLabels, List<int> rightLabels,
       int max_groups, JoinType how) {
-    var marker, counter;
+    LabelMarker marker;
+    JoinCounter counter;
     switch (how) {
       case JoinType.InnerJoin:
         marker = ijMarker;
@@ -66,26 +69,26 @@ import 'join_type.dart';
     // count number of output rows in join
     var i = 1;
     while (i <= max_groups) {
-      var lc = lcounts(i);
-      var rc = rcounts(i);
-      count = counter(lc, rc, count);
+      var lc = lcounts[i];
+      var rc = rcounts[i];
+      count = counter.apply(lc, rc, count);
       i += 1;
     }
 
     // exclude NA group
-    var lpos = lcounts(0);
-    var rpos = rcounts(0);
+    var lpos = lcounts[0];
+    var rpos = rcounts[0];
 
-    var lLabels = new List<int>(count);
-    var rLabels = new List<int>(count);
+    var lLabels = new Int32List(count);
+    var rLabels = new Int32List(count);
 
     // create join factor labels
     i = 1;
     var pos = 0;
     while (i <= max_groups) {
-      var lc = lcounts(i);
-      var rc = rcounts(i);
-      pos = marker(lLabels, rLabels, lc, rc, lpos, rpos, pos);
+      var lc = lcounts[i];
+      var rc = rcounts[i];
+      pos = marker.apply(lLabels, rLabels, lc, rc, lpos, rpos, pos);
       lpos += lc;
       rpos += rc;
       i += 1;
@@ -100,7 +103,7 @@ import 'join_type.dart';
     var n = labels.length;
 
     // Create vector of factor counts seen in labels array, saving location 0 for N/A
-    var counts = new List<int>(numFactors + 1);
+    var counts = new Int32List(numFactors + 1);
     var i = 0;
     while (i < n) {
       counts[labels[i] + 1] += 1;
@@ -119,7 +122,7 @@ import 'join_type.dart';
     // calculate running sum of label counts
     // - acts as a map from factor label to first offset within hypothetically sorted
     //   label array (in factor-ascending order)
-    var where = new List<int>(numFactors + 1);
+    var where = new Int32List(numFactors + 1);
     var i = 1;
     while (i < numFactors + 1) {
       where[i] = where[i - 1] + counts[i - 1];
@@ -128,7 +131,7 @@ import 'join_type.dart';
 
     // Build a permutation that maps from a position in a sorted label array
     // to a position in the original label array.
-    var permuter = new List<int>(n);
+    var permuter = new Int32List(n);
     i = 0;
     while (i < n) {
       var w = labels[i] + 1; // ith factor label
@@ -146,7 +149,7 @@ import 'join_type.dart';
       return array.take(unsorter, labels, () => -1);
     } else {
       var ll = labels.length;
-      var ar = new List<int>(ll);
+      var ar = new Int32List(ll);
       var i = 0;
       while (i < ll) {
         ar[i] = -1;

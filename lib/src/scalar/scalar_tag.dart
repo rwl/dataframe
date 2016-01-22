@@ -42,7 +42,7 @@ abstract class ScalarTag<T> /*[@spec(Boolean, Int, Long, Float, Double) T]*/
         CouldBeNumber<T>,
         ScalarHelperOps<T> /*with Serializable*/ {
   // representation of missing data
-  T get missing;
+  T missing();
   bool isMissing(T t);
   bool notMissing(T t);
 

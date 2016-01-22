@@ -23,8 +23,10 @@ library org.saddle.vec;
 //import org.saddle.util.Concat.Promoter
 
 import '../vec.dart';
+import 'vec_impl.dart';
 import '../scalar/scalar_tag.dart';
 import '../scalar/scalar_tag_int.dart';
+import '../array/array.dart';
 
 class VecInt extends Vec<int> {
   //self =>
@@ -41,9 +43,10 @@ class VecInt extends Vec<int> {
 
   Vec<int> copy() => new Vec(new List.from(toArray()) /*.clone()*/, scalarTag);
 
-  Vec<int> take(List<int> locs) => array.take(toArray, locs, scalarTag.missing);
+  Vec<int> take(List<int> locs) =>
+      scalarTag.makeVec(array.take(toArray(), locs, scalarTag.missing));
 
-  Vec<int> without(List<int> locs) => array.remove(toArray, locs);
+  Vec<int> without(List<int> locs) => array.remove(toArray(), locs);
 
   Vec<int> dropNA() => filter((_) => true);
 
@@ -53,7 +56,7 @@ class VecInt extends Vec<int> {
 
   Vec<C> concat /*[B, C]*/ (
           Vec<B> v) /*(implicit wd: Promoter[Int, B, C], mc: ST[C])*/ =>
-      Vec(util.Concat.append /*[Int, B, C]*/ (toArray, v.toArray));
+      Vec(util.Concat.append /*[Int, B, C]*/ (toArray(), v.toArray()));
 
   B foldLeft /*[@spec(Boolean, Int, Long, Double) B: ST]*/ (
           B init) /*(B f(B, Int))*/ =>
@@ -71,7 +74,7 @@ class VecInt extends Vec<int> {
           int winSz, B f(Vec<int> arg)) =>
       VecImpl.rolling(this)(winSz, f);
 
-  Vec<B> map /*[@spec(Boolean, Int, Long, Double) B: ST]*/ (B f(Int)) =>
+  Vec<B> map /*[@spec(Boolean, Int, Long, Double) B: ST]*/ (B f(int arg)) =>
       VecImpl.map(this)(f);
 
   Vec<B> flatMap /*[@spec(Boolean, Int, Long, Double) B : ST]*/ (

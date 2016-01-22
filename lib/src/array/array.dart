@@ -224,7 +224,7 @@ class _array {
     while (i < offsets.length) {
       var idx = offsets[i];
       if (idx == -1) {
-        res[i] = missing;
+        res[i] = missing();
       } else {
         res[i] = arr[idx];
       }

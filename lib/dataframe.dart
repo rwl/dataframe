@@ -5,3 +5,5 @@ export 'src/index/join_type.dart';
 
 export 'src/scalar/scalar.dart';
 export 'src/scalar/scalar_tag.dart';
+
+export 'src/vec.dart';

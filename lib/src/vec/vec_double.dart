@@ -22,6 +22,8 @@ library saddle.vec;
 //import org.saddle.util.Concat.Promoter
 //import org.saddle.scalar._
 
+import '../vec.dart';
+
 class VecDouble extends Vec<double> {
   //self =>
   VecDouble(List<double> values);

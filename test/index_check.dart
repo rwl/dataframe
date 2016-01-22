@@ -104,10 +104,10 @@ indexCheck() {
         var lix = ix1.toVec();
         var rix = ix2.toVec();
         var lft = res.lTake != null
-            ? res.lTake.map((x) => lix.take([x]))
+            ? lix.take(res.lTake)
             : lix.fillNA((i) => exp.raw(i));
         var rgt = res.rTake != null
-            ? res.rTake.map((x) => rix.take([x]))
+            ? rix.take(res.rTake)
             : rix.fillNA((i) => exp.raw(i));
 
         expect(lft, equals(exp));

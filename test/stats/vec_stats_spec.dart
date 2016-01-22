@@ -20,131 +20,156 @@ library saddle.stats.test;
 //import org.saddle._
 //import org.saddle.scalar.NA
 
+import 'dart:math' as math;
+
 import 'package:test/test.dart';
 import 'package:dataframe/dataframe.dart';
+
+import 'package:dataframe/src/stats/vec_stats.dart' as stats;
+
+const delta = 1e-9;
+
+cbrt(x) {
+  var y = math.pow(x.abs(), 1 / 3);
+  return x < 0 ? -y : y;
+}
 
 /**
  * Hand-calculated tests
  */
 //class VecStatsSpec extends Specification {
 vecStatsTest() {
-  val v1 = new Vec<double>(_1d, 2, 20, 23, 76, 12, -5, -27, 76, 67);
-  val v1pos = new Vec<double>(_1d, 2, 20, 23, 76, 12, 76, 67);
-  val v2 = new Vec<double>(_12d, 4, 19, 23, 76, 7, 6, -29, 50, 17);
-  val v3 = new Vec<double>(_1d, 2, 20, 15, 23, 56, 12);
-  val v4 = new Vec<double>(_1d, 2, 20, 23, 56, 12);
-  val v5 = new Vec<double>(_2d, 89, 23);
+  var st = ScalarTag.stDouble;
+
+  var v1 = new Vec<double>([1.0, 2, 20, 23, 76, 12, -5, -27, 76, 67], st);
+  var v1pos = new Vec<double>([1.0, 2, 20, 23, 76, 12, 76, 67], st);
+  var v2 = new Vec<double>([12.0, 4, 19, 23, 76, 7, 6, -29, 50, 17], st);
+  var v3 = new Vec<double>([1.0, 2, 20, 15, 23, 56, 12], st);
+  var v4 = new Vec<double>([1.0, 2, 20, 23, 56, 12], st);
+  var v5 = new Vec<double>([2.0, 89, 23], st);
 
   test("compute mean of a vector", () {
-    areClose(v1.mean, 24.5);
+    expect(v1.mean(), closeTo(24.5, delta));
   });
 
   test("compute the median of a vector", () {
-    areClose(v1.median, 16);
+    expect(v1.median(), closeTo(16, delta));
   });
 
   test("compute the geometric mean of a vector with positive elements", () {
-    areClose(v1pos.geomean, 15.9895, 1e-4);
+    expect(v1pos.geomean(), closeTo(15.9895, 1e-4));
   });
 
   test("compute the sample variance of a vector", () {
-    areClose(v1.variance, 1318.9444, 1e-4);
+    expect(v1.variance(), closeTo(1318.9444, 1e-4));
   });
 
   test("compute the sample standard deviation of a vector", () {
-    areClose(v1.stdev, 36.3173, 1e-4);
+    expect(v1.stdev(), closeTo(36.3173, 1e-4));
   });
 
   test("compute the sample skewness of a vector (unbiased)", () {
-    areClose(v1.skew, 0.4676, 1e-4);
+    expect(v1.skew(), closeTo(0.4676, 1e-4));
   });
 
   test("compute the sample excess kurtosis of a vector (unbiased)", () {
-    areClose(v1.kurt, -1.1138, 1e-4);
+    expect(v1.kurt(), closeTo(-1.1138, 1e-4));
   });
 
   test("find the maximum element of a vector", () {
-    areClose(v1.max.get, 76.0);
+    expect(v1.max() /*.get*/, closeTo(76.0, delta));
   });
 
   test("find the minimum element of a vector", () {
-    areClose(v1.min.get, -27.0);
+    expect(v1.min() /*.get*/, closeTo(-27.0, delta));
   });
 
   test("find the sum of all elements in a vector", () {
-    areClose(v1.sum, 245.0);
+    expect(v1.sum(), closeTo(245.0, delta));
   });
 
   test("find the product of all elements in a vector", () {
-    areClose(v1.prod, 5.7677e11, 1e-4);
+    expect(v1.prod(), closeTo(5.7677e11, 1e-4));
   });
 
   test(
       "Vector.median on an even vector is equivalent to the mean of the two center elements",
       () {
-    areClose(v4.median, (12 + 20) / 2.0);
+    expect(v4.median(), closeTo((12 + 20) / 2.0, delta));
   });
 
   test(
       "Vector.geometricMean on a 3 element vector is equivalent to the cube root of the product of elements",
       () {
-    areClose(v5.geomean, math.cbrt(v5.foldLeft(1.0)(_ * _)));
+    expect(
+        v5.geomean(), closeTo(cbrt(v5.foldLeft(1.0)((a, b) => a * b)), delta));
   });
 
   test("Vector skew corner case works", () {
-    val vec = new Vec<double>(-1.0, 1000, -1000, 1);
-    areClose(vec.skew, 0.0);
+    var vec = new Vec<double>([-1.0, 1000, -1000, 1], st);
+    expect(vec.skew, closeTo(0.0, delta));
   });
 
   test("Rank works", () {
-    val vec = new Vec<double>(1.0, 5.0, 4.0, 4.0, NA, 3.0);
+    var vec = new Vec<double>([1.0, 5.0, 4.0, 4.0, NA, 3.0], st);
 
-    expect(vec.rank(tie = stats.RankTie.Avg, ascending = true),
-        equals(new Vec<double>(1.0, 5.0, 3.5, 3.5, NA, 2.0)));
-    expect(vec.rank(tie = stats.RankTie.Min, ascending = true),
-        equals(new Vec<double>(1.0, 5.0, 3.0, 3.0, NA, 2.0)));
-    expect(vec.rank(tie = stats.RankTie.Max, ascending = true),
-        equals(new Vec<double>(1.0, 5.0, 4.0, 4.0, NA, 2.0)));
-    expect(vec.rank(tie = stats.RankTie.Nat, ascending = true),
-        equals(new Vec<double>(1.0, 5.0, 3.0, 4.0, NA, 2.0)));
+    expect(vec.rank(stats.RankTie.Avg, true),
+        equals(new Vec<double>([1.0, 5.0, 3.5, 3.5, NA, 2.0], st)));
+    expect(vec.rank(stats.RankTie.Min, true),
+        equals(new Vec<double>([1.0, 5.0, 3.0, 3.0, NA, 2.0], st)));
+    expect(vec.rank(stats.RankTie.Max, true),
+        equals(new Vec<double>([1.0, 5.0, 4.0, 4.0, NA, 2.0], st)));
+    expect(vec.rank(stats.RankTie.Nat, true),
+        equals(new Vec<double>([1.0, 5.0, 3.0, 4.0, NA, 2.0], st)));
 
-    expect(vec.rank(tie = stats.RankTie.Avg, ascending = false),
-        equals(new Vec<double>(5.0, 1.0, 2.5, 2.5, NA, 4.0)));
-    expect(vec.rank(tie = stats.RankTie.Min, ascending = false),
-        equals(new Vec<double>(5.0, 1.0, 2.0, 2.0, NA, 4.0)));
-    expect(vec.rank(tie = stats.RankTie.Max, ascending = false),
-        equals(new Vec<double>(5.0, 1.0, 3.0, 3.0, NA, 4.0)));
-    expect(vec.rank(tie = stats.RankTie.Nat, ascending = false),
-        equals(new Vec<double>(5.0, 1.0, 2.0, 3.0, NA, 4.0)));
+    expect(vec.rank(stats.RankTie.Avg, false),
+        equals(new Vec<double>([5.0, 1.0, 2.5, 2.5, NA, 4.0], st)));
+    expect(vec.rank(stats.RankTie.Min, false),
+        equals(new Vec<double>([5.0, 1.0, 2.0, 2.0, NA, 4.0], st)));
+    expect(vec.rank(stats.RankTie.Max, false),
+        equals(new Vec<double>([5.0, 1.0, 3.0, 3.0, NA, 4.0], st)));
+    expect(vec.rank(stats.RankTie.Nat, false),
+        equals(new Vec<double>([5.0, 1.0, 2.0, 3.0, NA, 4.0], st)));
 
-    val vec2 = new Vec.empty<double>();
-    expect(vec2.rank(), euqals(vec2));
+    Vec vec2 = new Vec.empty<double>();
+    expect(vec2.rank(), equals(vec2));
 
-    val vec3 = new Vec(1.0);
+    Vec vec3 = new Vec([1.0], st);
     expect(vec3.rank(), equals(vec3));
   });
 
   test("Percentile works", () {
-    val vec = new Vec<double>(15.0, 20, 35, 40, NA, 50);
-    areClose(vec.percentile(40), 26.0);
+    var vec = new Vec<double>([15.0, 20, 35, 40, NA, 50], st);
+    expect(vec.percentile(40.0), closeTo(26.0, delta));
 
-    expect(vec.percentile(-1).isNaN, isTrue);
-    expect(vec.percentile(101).isNaN, isTrue);
+    expect(vec.percentile(-1.0).isNaN, isTrue);
+    expect(vec.percentile(101.0).isNaN, isTrue);
 
     expect(new Vec.empty<double>.percentile(0).isNaN, isTrue);
 
-    expect(Vec(1.0).percentile(0), equals(new Vec(1.0).percentile(100)));
+    expect(new Vec([1.0], st).percentile(0.0),
+        equals(new Vec([1.0], st).percentile(100.0)));
 
-    val tst = new Vec<double>(NA, -1000.0000, 0.0000, -946.7879, -256.7953,
-        1000.0000, -307.5079, -832.8867);
-    areClose(tst.percentile(50), -307.5079, 1e-4);
+    var tst = new Vec<double>([
+      NA,
+      -1000.0000,
+      0.0000,
+      -946.7879,
+      -256.7953,
+      1000.0000,
+      -307.5079,
+      -832.8867
+    ], st);
+    expect(tst.percentile(50.0), closeTo(-307.5079, 1e-4));
 
-    val tst2 = new Vec<double>(1, 0);
-    areClose(tst2.percentile(50), 0.5, 1e-4);
+    var tst2 = new Vec<double>([1, 0], st);
+    expect(tst2.percentile(50.0), closeTo(0.5, 1e-4));
 
-    val tst3 = new Vec(0.785, 0.0296, 0.2408, 0.884, 0.5759, 0.8087, 0.4421);
-    areClose(tst3.percentile(0, PctMethod.Excel), 0.0296, 1e-4);
-    areClose(tst3.percentile(35, PctMethod.Excel), 0.4555, 1e-4);
-    areClose(tst3.percentile(100, PctMethod.Excel), 0.8840, 1e-4);
+    var tst3 =
+        new Vec([0.785, 0.0296, 0.2408, 0.884, 0.5759, 0.8087, 0.4421], st);
+    expect(tst3.percentile(0.0, stats.PctMethod.Excel), closeTo(0.0296, 1e-4));
+    expect(tst3.percentile(35.0, stats.PctMethod.Excel), closeTo(0.4555, 1e-4));
+    expect(
+        tst3.percentile(100.0, stats.PctMethod.Excel), closeTo(0.8840, 1e-4));
   });
 }

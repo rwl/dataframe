@@ -21,6 +21,7 @@ library saddle.index;
 //import locator.Locator
 
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import '../array/array.dart';
 import '../index.dart';
@@ -116,7 +117,7 @@ class JoinerImpl<
     if (left.isMonotonic && right.isMonotonic && !(ll > 5 * rl)) {
       return leftJoinMonotonicUnique(left, right);
     } else {
-      var indexer = new List<int>(ll);
+      var indexer = new Int32List(ll);
       var i = 0;
       while (i < ll) {
         var otherVal = left.raw(i);
@@ -139,15 +140,15 @@ class JoinerImpl<
     var max_groups = rizer.numUniq;
 
     var result = JoinHelper.apply(leftLabels, rightLabels, max_groups, how);
-    var lTake = result.lIdx;
-    var rTake = result.rIdx;
+    List lTake = result.lIdx;
+    List rTake = result.rIdx;
 
     // construct new joint index
     var newIdx = new List<T>(lTake.length);
     var i = 0;
     while (i < newIdx.length) {
-      var lpos = lTake(i);
-      newIdx[i] = (lpos != -1) ? left.raw(lpos) : right.raw(rTake(i));
+      var lpos = lTake[i];
+      newIdx[i] = (lpos != -1) ? left.raw(lpos) : right.raw(rTake[i]);
       i += 1;
     }
 
@@ -190,8 +191,8 @@ class JoinerImpl<
 
       // now, fill up with values
       var res = new List<T>(c);
-      var lft = new List<int>(c);
-      var rgt = new List<int>(c);
+      var lft = new Int32List(c);
+      var rgt = new Int32List(c);
 
       i = 0;
       j = 0;
@@ -320,7 +321,7 @@ class JoinerImpl<
     var rl = right.length;
 
     if (ll == 0) {
-      var lft = new List<int>(rl);
+      var lft = new Int32List(rl);
       var i = 0;
       while (i < rl) {
         lft[i] = -1;
@@ -328,7 +329,7 @@ class JoinerImpl<
       }
       return new ReIndexer(lft, null, right);
     } else if (rl == 0) {
-      var rgt = new List<int>(ll);
+      var rgt = new Int32List(ll);
       var i = 0;
       while (i < ll) {
         rgt[i] = -1;
@@ -363,8 +364,8 @@ class JoinerImpl<
       // then fill
 
       var res = new List<T>(c);
-      var lft = new List<int>(c);
-      var rgt = new List<int>(c);
+      var lft = new Int32List(c);
+      var rgt = new Int32List(c);
 
       c = 0;
       i = 0;
@@ -559,7 +560,7 @@ class JoinerImpl<
 
   ReIndexer<T> leftJoinMonotonicUnique(Index<T> left, Index<T> right) {
     var scalar = left.scalarTag;
-    var rgt = new List<int>(left.length);
+    var rgt = new Int32List(left.length);
 
     var i = 0;
     var j = 0;
@@ -681,12 +682,12 @@ class JoinerImpl<
   // Updates factor counts as well
   List<int> factorize(Index<T> idx) {
     var n = idx.length;
-    var labels = new List<int>(n);
+    var labels = new Int32List(n);
 
     var i = 0;
     while (i < n) {
       var v = idx.raw(i);
-      var loc = map[v];
+      var loc = map[v] ?? -1;
       if (loc != -1) {
         labels[i] = loc;
       } else {

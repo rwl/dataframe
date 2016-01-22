@@ -24,11 +24,15 @@ library saddle.scalar;
 //import org.saddle.locator.LocatorDouble
 //import org.saddle.array.Sorter
 
+import 'scalar_tag.dart';
+
+final _ScalarTagDouble ScalarTagDouble = new _ScalarTagDouble();
+
 /**
  * Double ScalarTag
  */
-class ScalarTagDouble extends ScalarTag<double> {
-  double get missing => double.NAN;
+class _ScalarTagDouble extends ScalarTag<double> {
+  double missing() => double.NAN;
   bool isMissing(double v) => (v != v);
   bool notMissing(double v) => (v == v);
 

@@ -33,8 +33,8 @@ import '../locator/locator.dart';
 import '../locator/locator_int.dart';
 import '../buffer.dart';
 
-const int MIN_INT = -2147483648;
-const int MAX_INT = 2147483647;
+const int MIN_INT = -9007199254740991; //-2147483648;
+const int MAX_INT = 9007199254740991; //2147483647;
 
 _ScalarTagInt ScalarTagInt = new _ScalarTagInt();
 
@@ -42,7 +42,7 @@ _ScalarTagInt ScalarTagInt = new _ScalarTagInt();
  * Int ScalarTag
  */
 class _ScalarTagInt extends ScalarTag<int> {
-  int get missing => MIN_INT;
+  int missing() => MIN_INT;
   bool isMissing(int v) => v == MIN_INT;
   bool notMissing(int v) => v != MIN_INT;
 

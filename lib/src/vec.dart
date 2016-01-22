@@ -27,6 +27,7 @@ import 'scalar/scalar.dart';
 //import 'util/concat.dart' show Promoter;
 
 import 'scalar/scalar_tag.dart';
+import 'stats/vec_stats.dart';
 
 // import java.io.OutputStream
 
@@ -73,8 +74,9 @@ import 'scalar/scalar_tag.dart';
  *
  * @tparam T Type of elements within the Vec
  */
-/*abstract*/ class Vec< /*Boolean, Int, Long, Double*/ T> /*extends NumericOps<Vec<T>> with Serializable*/ extends ListBase<
-    T> {
+/*abstract*/ class Vec<
+        T> /*Boolean, Int, Long, Double*/ /*extends NumericOps<Vec<T>> with Serializable*/ //extends ListBase<T>
+    extends Object with VecStats<T> {
 //  void set length(int newLength) { l.length = newLength; }
 //  int get length => l.length;
   T operator [](int index) => raw(index);
@@ -248,7 +250,8 @@ import 'scalar/scalar_tag.dart';
    * @tparam B type of other Vec elements
    * @tparam C type of resulting Vec elements
    */
-//  def concat[B, C](v: Vec[B])(implicit wd: Promoter[T, B, C], mc: ST[C]): Vec[C]
+  Vec<C> concat /*[B, C]*/ (
+      Vec<B> v) /*(implicit wd: Promoter[T, B, C], mc: ST[C])*/;
 
   /**
    * Additive inverse of Vec with numeric elements
@@ -278,16 +281,20 @@ import 'scalar/scalar_tag.dart';
    * Left scan over the elements of the Vec, as in scala collections library
    */
 //  def scanLeft[@spec(Boolean, Int, Long, Double) B: ST](init: B)(f: (B, T) => B): Vec[B]
+  Vec<B> scanLeft /*[@spec(Boolean, Int, Long, Double) B: ST]*/ (
+      B init) /*(B f(B, T))*/;
 
   /**
    * Filtered left fold over the elements of the Vec, as in scala collections library
    */
-//  def filterFoldLeft[@spec(Boolean, Int, Long, Double) B: ST](pred: T => Boolean)(init: B)(f: (B, T) => B): B
+  B filterFoldLeft /*[@spec(Boolean, Int, Long, Double) B: ST]*/ (
+      bool pred(T arg)) /*(B init)(B f(B arg, T arg))*/;
 
   /**
    * Filtered left scan over elements of the Vec, as in scala collections library
    */
-//  def filterScanLeft[@spec(Boolean, Int, Long, Double) B: ST](pred: T => Boolean)(init: B)(f: (B, T) => B): Vec[B]
+  Vec<B> filterScanLeft /*[@spec(Boolean, Int, Long, Double) B: ST]*/ (
+      bool pred(T arg)) /*(B init)(B f(B arg, T arg))*/;
 
   /**
    * Left fold that folds only while the test condition holds true. As soon as the condition function yields
@@ -295,7 +302,8 @@ import 'scalar/scalar_tag.dart';
    *
    * @param cond Function whose signature is the same as the fold function, except that it evaluates to Boolean
    */
-//  def foldLeftWhile[@spec(Boolean, Int, Long, Double) B: ST](init: B)(f: (B, T) => B)(cond: (B, T) => Boolean): B
+  B foldLeftWhile /*[@spec(Boolean, Int, Long, Double) B: ST]*/ (
+      B init) /*(B f(B arg, T arg))(bool cond(B arg, T arg2))*/;
 
   /**
    * Zips Vec with another Vec and applies a function to the paired elements. If either of the pair is NA, the
@@ -389,7 +397,8 @@ import 'scalar/scalar_tag.dart';
    * Yield a Vec whose elements have been sorted (in ascending order)
    * @param ev evidence of Ordering[A]
    */
-  sorted(/*implicit*/ ORD<T> ev, ST<T> st) => take(array.argsort(toArray));
+  Vec<T> sorted(/*implicit*/ ORD<T> ev, ST<T> st) =>
+      take(array.argsort(toArray));
 
   /**
    * Yield a Vec whose elements have been reversed from their original order
@@ -495,7 +504,8 @@ import 'scalar/scalar_tag.dart';
 
   /** Default hashcode is simple rolling prime multiplication of sums of hashcodes for all values. */
   @override
-  int get hashCode => foldLeft(1)(_ * 31 + _.hashCode());
+  int get hashCode => toArray().fold(
+      1, (a, b) => a * 31 + b.hashCode); //foldLeft(1)(_ * 31 + _.hashCode());
 
   /**
    * Default equality does an iterative, element-wise equality check of all values.
@@ -529,17 +539,18 @@ import 'scalar/scalar_tag.dart';
 
     var maxf = (int a, String b) => math.max(a, b.length);
 
-//    if (length == 0) {
-//      buf.write("Empty Vec");
-//    } else {
-//      buf.write("[%d x 1]\n" format (length));
+    if (length == 0) {
+      buf.write("Empty Vec");
+    } else {
+      buf.write("[$length x 1]\n");
+      buf.write(toArray().toString());
 //      val vlen = { head(half) concat tail(half) }.map(scalarTag.show(_)).foldLeft(0)(maxf);
 //
 //      def createRow(r: Int): String = ("%" + { if (vlen > 0) vlen else 1 } + "s\n").format(scalarTag.show(apply(r)))
 //      buf append util.buildStr(len, length, createRow, " ... \n" )
-//    }
+    }
 
-    buf.toString();
+    return buf.toString();
   }
 
   /**

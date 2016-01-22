@@ -19,9 +19,11 @@ library saddle.vec;
 //import scala.{ specialized => spec }
 //import org.saddle._
 
+import '../vec.dart';
+
 // Specialized method implementations for code reuse in implementations of Vec; NA-safe
 /*private[saddle]*/ class VecImpl {
-  Vec<A> mask /*[@spec(Boolean, Int, Long, Double) A: ST]*/ (
+  static Vec<A> mask /*[@spec(Boolean, Int, Long, Double) A: ST]*/ (
       Vec<A> v1, Vec<bool> v2, A value) {
     require(v1.length == v2.length, "Vectors must be the same length");
     val buf = Array.ofDim[A](v1.length);
@@ -35,7 +37,7 @@ library saddle.vec;
     Vec(buf);
   }
 
-  Vec<A> mask /*[@spec(Boolean, Int, Long, Double) A: ST]*/ (
+  static Vec<A> mask2 /*[@spec(Boolean, Int, Long, Double) A: ST]*/ (
       Vec<A> v1, bool f(A arg), A value) {
     val sa = implicitly[ST[A]];
     val buf = Array.ofDim[A](v1.length);
@@ -48,7 +50,7 @@ library saddle.vec;
     Vec(buf);
   }
 
-  B foldLeft /*[@spec(Boolean, Int, Long, Double) A: ST, @spec(Boolean, Int, Long, Double) B]*/ (
+  static B foldLeft /*[@spec(Boolean, Int, Long, Double) A: ST, @spec(Boolean, Int, Long, Double) B]*/ (
       Vec<A> vec) /*(B init)(B f(B arg1, A arg2))*/ {
     val sa = implicitly[ST[A]];
     var acc = init;
@@ -65,7 +67,7 @@ library saddle.vec;
    * Same as foldLeft, but with a condition that operates on the accumulator and element
    * that if false, breaks out of the fold
    */
-  B foldLeftWhile /*[@spec(Boolean, Int, Long, Double) A: ST, @spec(Boolean, Int, Long, Double) B]*/ (
+  static B foldLeftWhile /*[@spec(Boolean, Int, Long, Double) A: ST, @spec(Boolean, Int, Long, Double) B]*/ (
       Vec<A> vec) /*(B init)(B f(B arg1, A arg2))(bool cond(B arg1, A arg2))*/ {
     val sa = implicitly[ST[A]];
     var acc = init;
@@ -84,11 +86,12 @@ library saddle.vec;
     acc;
   }
 
-  Vec<B> map /*[@spec(Boolean, Int, Long, Double) A: ST, @spec(Boolean, Int, Long, Double) B: ST]*/ (
+  static Vec<
+      B> map /*[@spec(Boolean, Int, Long, Double) A: ST, @spec(Boolean, Int, Long, Double) B: ST]*/ (
       Vec<A> vec) /*(f: A => B)*/ {
-    val sca = implicitly[ST[A]];
-    val scb = implicitly[ST[B]];
-    val buf = Array.ofDim[B](vec.length);
+    var sca = implicitly[ST[A]];
+    var scb = implicitly[ST[B]];
+    var buf = Array.ofDim[B](vec.length);
     var i = 0;
     while (i < vec.length) {
       A v = vec(i);
@@ -102,7 +105,8 @@ library saddle.vec;
     Vec(buf);
   }
 
-  Vec<B> flatMap /*[@spec(Boolean, Int, Long, Double) A: ST,
+  static Vec<
+      B> flatMap /*[@spec(Boolean, Int, Long, Double) A: ST,
               @spec(Boolean, Int, Long, Double) B: ST]*/
   (Vec<A> vec) /*(Vec<B> f(A arg))*/ {
     var i = 0;
@@ -120,7 +124,8 @@ library saddle.vec;
    * from the Scala collections library by not including the initial value at the head of the
    * scan.
    */
-  Vec<B> scanLeft /*[@spec(Boolean, Int, Long, Double) A: ST, @spec(Boolean, Int, Long, Double) B: ST]*/ (
+  static Vec<
+      B> scanLeft /*[@spec(Boolean, Int, Long, Double) A: ST, @spec(Boolean, Int, Long, Double) B: ST]*/ (
       Vec<A> vec) /*(B init)(B f(B arg1, A arg2))*/ {
     val sca = implicitly[ST[A]];
     val scb = implicitly[ST[B]];
@@ -140,7 +145,8 @@ library saddle.vec;
     Vec(buf);
   }
 
-  Vec<C> zipMap /*[@spec(Int, Long, Double) A: ST, @spec(Int, Long, Double) B: ST, @spec(Boolean, Int, Long, Double) C: ST]*/ (
+  static Vec<
+      C> zipMap /*[@spec(Int, Long, Double) A: ST, @spec(Int, Long, Double) B: ST, @spec(Boolean, Int, Long, Double) C: ST]*/ (
       Vec<A> v1, Vec<B> v2) /*(C f(A arg1, B arg2))*/ {
     require(v1.length == v2.length, "Vectors must be the same length");
     val sca = implicitly[ST[A]];
@@ -161,7 +167,7 @@ library saddle.vec;
     Vec(buf);
   }
 
-  B filterFoldLeft /*[@spec(Boolean, Int, Long, Double) A: ST, @spec(Boolean, Int, Long, Double) B]*/ (
+  static B filterFoldLeft /*[@spec(Boolean, Int, Long, Double) A: ST, @spec(Boolean, Int, Long, Double) B]*/ (
       Vec<A> vec) /*(bool pred(A arg))(B init)(B f(B arg1, A arg2))*/ {
     val sa = implicitly[ST[A]];
     var acc = init;
@@ -176,7 +182,8 @@ library saddle.vec;
     acc;
   }
 
-  Vec<B> filterScanLeft /*[@spec(Boolean, Int, Long, Double) A: ST, @spec(Boolean, Int, Long, Double) B: ST]*/ (
+  static Vec<
+      B> filterScanLeft /*[@spec(Boolean, Int, Long, Double) A: ST, @spec(Boolean, Int, Long, Double) B: ST]*/ (
       Vec<A> vec) /*(bool pred(A arg))(B init)(B f(B arg1, A arg2))*/ {
     val sa = implicitly[ST[A]];
     val sb = implicitly[ST[B]];
@@ -196,7 +203,8 @@ library saddle.vec;
     Vec(buf);
   }
 
-  Vec<B> rolling /*[@spec(Boolean, Int, Long, Double) A, @spec(Boolean, Int, Long, Double) B: ST]*/ (
+  static Vec<
+      B> rolling /*[@spec(Boolean, Int, Long, Double) A, @spec(Boolean, Int, Long, Double) B: ST]*/ (
       Vec<A> vec) /*(
     int winSz, B f(Vec<A> arg1))*/
   {
@@ -219,7 +227,7 @@ library saddle.vec;
     }
   }
 
-  void foreach /*[@spec(Boolean, Int, Long, Double) A: ST]*/ (
+  static void foreach /*[@spec(Boolean, Int, Long, Double) A: ST]*/ (
       Vec<A> vec) /*(Unit op(A arg))*/ {
     val sa = implicitly[ST[A]];
     var i = 0;
@@ -230,7 +238,7 @@ library saddle.vec;
     }
   }
 
-  void forall /*[@spec(Boolean, Int, Long, Double) A: ST]*/ (
+  static void forall /*[@spec(Boolean, Int, Long, Double) A: ST]*/ (
       Vec<A> vec) /*(bool pred(A arg))(Unit op(A arg))*/ {
     val sa = implicitly[ST[A]];
     var i = 0;
@@ -241,7 +249,7 @@ library saddle.vec;
     }
   }
 
-  Vec<int> find /*[@spec(Boolean, Int, Long, Double) A: ST]*/ (
+  static Vec<int> find /*[@spec(Boolean, Int, Long, Double) A: ST]*/ (
       Vec<A> vec) /*(bool pred(A arg))*/ {
     val sa = implicitly[ST[A]];
     var i = 0;
@@ -254,7 +262,8 @@ library saddle.vec;
     Vec(buf.toArray);
   }
 
-  bool findOneNA /*[@spec(Boolean, Int, Long, Double) A: ST]*/ (Vec<A> vec) {
+  static bool findOneNA /*[@spec(Boolean, Int, Long, Double) A: ST]*/ (
+      Vec<A> vec) {
     val sa = implicitly[ST[A]];
     var ex = false;
     var i = 0;
@@ -266,7 +275,8 @@ library saddle.vec;
     ex;
   }
 
-  bool isAllNA /*[@spec(Boolean, Int, Long, Double) A: ST]*/ (Vec<A> vec) {
+  static bool isAllNA /*[@spec(Boolean, Int, Long, Double) A: ST]*/ (
+      Vec<A> vec) {
     val sa = implicitly[ST[A]];
     var ex = true;
     var i = 0;
@@ -278,7 +288,7 @@ library saddle.vec;
     ex;
   }
 
-  int findOne /*[@spec(Boolean, Int, Long, Double) A: ST]*/ (
+  static int findOne /*[@spec(Boolean, Int, Long, Double) A: ST]*/ (
       Vec<A> vec) /*(bool pred(A arg))*/ {
 //    val sa = implicitly[ST<A>];
     var ex = false;
@@ -292,7 +302,7 @@ library saddle.vec;
     else -1;
   }
 
-  Vec<A> filter /*[@spec(Boolean, Int, Long, Double) A: ST]*/ (
+  static Vec<A> filter /*[@spec(Boolean, Int, Long, Double) A: ST]*/ (
       Vec<A> vec) /*(bool pred(A arg))*/ {
 //    val sa = implicitly[ST[A]];
     var i = 0;
@@ -305,7 +315,7 @@ library saddle.vec;
     Vec(buf.toArray);
   }
 
-  Vec<A> filterAt /*[@spec(Boolean, Int, Long, Double) A: ST]*/ (
+  static Vec<A> filterAt /*[@spec(Boolean, Int, Long, Double) A: ST]*/ (
       Vec<A> vec) /*(bool pred(int arg))*/ {
     var i = 0;
     val buf = Buffer[A]();
@@ -317,7 +327,7 @@ library saddle.vec;
     Vec(buf.toArray);
   }
 
-  Vec<A> where /*[@spec(Boolean, Int, Long, Double) A: ST]*/ (
+  static Vec<A> where /*[@spec(Boolean, Int, Long, Double) A: ST]*/ (
       Vec<A> vec) /*(Array<bool> pred)*/ {
     var i = 0;
     val buf = Buffer[A]();
@@ -329,7 +339,7 @@ library saddle.vec;
     Vec(buf.toArray);
   }
 
-  Vec<A> pad /*[@spec(Boolean, Int, Long, Double) A: ST]*/ (Vec<A> vec,
+  static Vec<A> pad /*[@spec(Boolean, Int, Long, Double) A: ST]*/ (Vec<A> vec,
       [int atMost = 0]) {
     if (vec.length == 0 || vec.length == 1) {
       vec;
@@ -355,7 +365,7 @@ library saddle.vec;
     }
   }
 
-  Vec<A> vecfillNA /*[@spec(Boolean, Int, Long, Double) A: ST]*/ (
+  static Vec<A> vecfillNA /*[@spec(Boolean, Int, Long, Double) A: ST]*/ (
       Vec<A> vec) /*(A f(int arg))*/ {
     val buf = vec.contents;
     var i = 0;
@@ -368,7 +378,8 @@ library saddle.vec;
     Vec(buf);
   }
 
-  Vec<A> seriesfillNA /*[@spec(Int, Long, Double) X, @spec(Boolean, Int, Long, Double) A: ST]*/ (
+  static Vec<
+      A> seriesfillNA /*[@spec(Int, Long, Double) X, @spec(Boolean, Int, Long, Double) A: ST]*/ (
       Vec<X> idx, Vec<A> vec) /*(A f(X arg))*/ {
     val buf = vec.contents;
     var i = 0;
