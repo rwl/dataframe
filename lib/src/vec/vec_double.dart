@@ -22,6 +22,8 @@ library saddle.vec;
 //import org.saddle.util.Concat.Promoter
 //import org.saddle.scalar._
 
+import 'dart:typed_data';
+
 import '../vec.dart';
 import '../scalar/scalar_tag.dart';
 import '../scalar/scalar_tag_double.dart';
@@ -30,9 +32,11 @@ import 'vec_impl.dart';
 
 class VecDouble extends Vec<double> {
   //self =>
-  List<double> values;
+  Float64List values;
 
-  VecDouble(this.values) : super.internal();
+  VecDouble(List<double> values_)
+      : values = new Float64List.fromList(values_),
+        super.internal();
 
   int get length => values.length;
 

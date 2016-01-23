@@ -26,6 +26,7 @@ import '../locator/locator.dart';
 import '../index.dart';
 import '../vec.dart';
 import '../mat.dart';
+import '../array/sorter.dart';
 
 import 'scalar_tag_int.dart' as st_int;
 import 'scalar_tag_double.dart' as st_dbl;
@@ -135,10 +136,10 @@ abstract class CouldBeNumber<
   double toDouble(T t) /*(implicit ev: NUM<T>)*/;
   bool get isDouble;
 
-  T zero(/*implicit*/ Numeric<T> ev);
-  T one(/*implicit*/ Numeric<T> ev);
-  T inf(/*implicit*/ Numeric<T> ev);
-  T negInf(/*implicit*/ Numeric<T> ev);
+  T zero(/*implicit Numeric<T> ev*/);
+  T one(/*implicit Numeric<T> ev*/);
+  T inf(/*implicit Numeric<T> ev*/);
+  T negInf(/*implicit Numeric<T> ev*/);
 }
 
 abstract class SpecializedFactory<
@@ -148,7 +149,7 @@ abstract class SpecializedFactory<
   Vec<T> makeVec(List<T> arr);
   Mat<T> makeMat(int r, int c, List<T> arr);
   Index<T> makeIndex(Vec<T> vec) /*(implicit ord: ORD<T>)*/;
-  Sorter<T> makeSorter(/*implicit*/ Ordering<T> ord);
+  Sorter<T> makeSorter(/*implicit Ordering<T> ord*/);
 
   /**
    * An alternative Mat factory method using array of Vecs

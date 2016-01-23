@@ -29,6 +29,7 @@ import 'scalar/scalar.dart';
 import 'scalar/scalar_tag.dart';
 import 'stats/vec_stats.dart';
 import 'vec/vec_impl.dart';
+import 'array/array.dart';
 
 // import java.io.OutputStream
 
@@ -333,7 +334,7 @@ import 'vec/vec_impl.dart';
    * @param op operation to execute
    */
   void foreach(Unit op(T arg)) {
-    VecImpl.foreach(this)(op)(scalarTag);
+    return VecImpl.foreach(this, op); //(scalarTag);
   }
 
   /**
@@ -342,21 +343,21 @@ import 'vec/vec_impl.dart';
    * @param pred Function A => Boolean
    * @param op Side-effecting function
    */
-  void forall(bool pred(T arg)) /*(Unit op(T arg))*/ {
-    VecImpl.forall(this)(pred)(op)(scalarTag);
+  void forall(bool pred(T arg), op(arg)) /*(Unit op(T arg))*/ {
+    return VecImpl.forall(this, pred, op); //(scalarTag);
   }
 
   /**
    * Return Vec of integer locations (offsets) which satisfy some predicate
    * @param pred Predicate function from A => Boolean
    */
-  Vec<int> find(bool pred(T arg)) => VecImpl.find(this)(pred)(scalarTag);
+  Vec<int> find(bool pred(T arg)) => VecImpl.find(this, pred); //(scalarTag);
 
   /**
    * Return first integer location which satisfies some predicate, or -1 if there is none
    * @param pred Predicate function from A => Boolean
    */
-  int findOne(bool pred(T arg)) => VecImpl.findOne(this)(pred)(scalarTag);
+  int findOne(bool pred(T arg)) => VecImpl.findOne(this, pred); //, scalarTag);
 
   /**
    * Return true if there exists some element of the Vec which satisfies the predicate function
@@ -375,13 +376,14 @@ import 'vec/vec_impl.dart';
    * @param pred Predicate function from Int => Boolean
    */
   Vec<T> filterAt(bool pred(int arg)) =>
-      VecImpl.filterAt(this)(pred)(scalarTag);
+      VecImpl.filterAt(this, pred); //(scalarTag);
 
   /**
    * Return Vec whose elements are selected via a Vec of booleans (where that Vec holds the value true)
    * @param pred Predicate vector: Vec[Boolean]
    */
-  Vec<T> where(Vec<bool> pred) => VecImpl.where(this)(pred.toArray)(scalarTag);
+  Vec<T> where(Vec<bool> pred) =>
+      VecImpl.where(this, pred.toArray()); //(scalarTag);
 
   /**
    * Produce a Vec whose entries are the result of executing a function on a sliding window of the
@@ -397,15 +399,15 @@ import 'vec/vec_impl.dart';
    * Yield a Vec whose elements have been sorted (in ascending order)
    * @param ev evidence of Ordering[A]
    */
-  Vec<T> sorted(/*implicit*/ ORD<T> ev, ST<T> st) =>
-      take(array.argsort(toArray));
+  Vec<T> sorted(/*implicit ORD<T> ev, ST<T> st*/) =>
+      take(array.argsort(toArray(), scalarTag));
 
   /**
    * Yield a Vec whose elements have been reversed from their original order
    */
   Vec<T> get reversed {
-    /*implicit*/ val tag = scalarTag;
-    Vec(array.reverse(toArray));
+    /*implicit*/ var tag = scalarTag;
+    return new Vec(array.reverse(toArray()), tag);
   }
 
   /**
@@ -476,7 +478,7 @@ import 'vec/vec_impl.dart';
    *
    * @param f A function from Int => A; yields value for NA value at ith position
    */
-  Vec<T> fillNA(T f(int arg)) => VecImpl.vecfillNA(this)(f)(scalarTag);
+  Vec<T> fillNA(T f(int arg)) => VecImpl.vecfillNA(this, f); //(scalarTag);
 
   /**
    * Converts Vec to an indexed sequence (default implementation is immutable.Vector)
@@ -609,7 +611,7 @@ import 'vec/vec_impl.dart';
    *
    * @tparam T Vec type parameter
    */
-  Vec<T> empty() /*[T: ST]*/ => Vec(Array.empty[T]);
+  factory Vec.empty(ScalarTag<T> st) /*[T: ST]*/ => new Vec([], st);
 
   // **** conversions
 

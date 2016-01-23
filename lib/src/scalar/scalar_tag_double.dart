@@ -27,6 +27,7 @@ library saddle.scalar;
 import '../vec.dart';
 import '../vec/vec_double.dart';
 import '../buffer.dart';
+import '../array/sorter.dart';
 
 import 'scalar_tag.dart';
 
@@ -76,7 +77,7 @@ class _ScalarTagDouble extends ScalarTag<double> {
       new MatDouble(r, c, arr);
   Index<double> makeIndex(Vec<double> vec) /*(implicit ord: ORD<double>)*/ =>
       new IndexDouble(vec);
-  Sorter<double> makeSorter(/*implicit*/ Ordering<double> ord) =>
+  Sorter<double> makeSorter(/*implicit Ordering<double> ord*/) =>
       Sorter.doubleSorter;
 
   Vec<double> concat(List<Vec<double>> arrs) =>

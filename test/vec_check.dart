@@ -156,25 +156,26 @@ vecCheck() {
       var data = v.contents;
       expect(v.hasNA, equals((data.where((d) => d.isNaN).isNotEmpty)));
     });
-    /*
+
     test("findOne works", () {
-      var v = new Vec<double>([1.0, 2, 3, st.missing(), 5], st);
+      var v = new Vec<double>([1.0, 2.0, 3.0, st.missing(), 5.0], st);
       expect(v.findOne((d) => d == 3.0), equals(2));
       expect(v.findOne((d) => d == 5.0), equals(4));
       expect(v.findOne((d) => d == 7.0), equals(-1));
     });
 
     test("find works", () {
-      var v = new Vec<double>([1.0, 2, 3, st.missing(), 3, 4], st);
+      var v = new Vec<double>([1.0, 2.0, 3.0, st.missing(), 3.0, 4.0], st);
       expect(v.find((d) => d == 3.0),
           equals(new Vec<int>([2, 4], ScalarTag.stInt)));
       expect(
           v.find((d) => d == 4.0), equals(new Vec<int>([5], ScalarTag.stInt)));
-//      expect(v.find((d) => d == 7.0), equals(new Vec.empty<int>(ScalarTag.stInt)));
+      expect(
+          v.find((d) => d == 7.0), equals(new Vec<int>.empty(ScalarTag.stInt)));
     });
 
     test("exists works", () {
-      var v = new Vec<double>([1.0, 2, 3, st.missing(), 3, 4], st);
+      var v = new Vec<double>([1.0, 2.0, 3.0, st.missing(), 3.0, 4.0], st);
       expect(v.exists((d) => d == 3.0), isTrue);
       expect(v.exists((d) => d == 2.0), isTrue);
       expect(v.exists((d) => d == 9.0), isFalse);
@@ -191,32 +192,35 @@ vecCheck() {
       expect(res.length <= i || res.length == v.length - 1, isTrue);
     });
 
-    test("where works", () {
+//    test("where works", () {
 //      var whereVec = v < 0;
 //      expect(v.where(whereVec), equals(v.filter((d) => d < 0)));
-    });
+//    });
 
-    test("sorted works", () {
+//    test("sorted works", () {
 //      var res = v.sorted();
-      var exp = new Vec(v.contents..sort(), st);
+//      var exp = new Vec(v.contents..sort(), st);
 //      var nas = v.length - v.count;
+//
+//      expect(
+//          res.slice(nas, res.length), equals(exp.slice(0, res.length - nas)));
+//    });
 
-//      expect(res.slice(nas, res.length), equals(exp.slice(0, res.length - nas)));
-    });
-
-    test("forall works", () {
-      var c = 0;
-//      v.forall((d) => d > 0.5) { i => if (!i.isNaN) c += 1 };
+//    test("forall works", () {
+//      var c = 0;
+//      v.forall((d) => d > 0.5, (i) {
+//        if (!i.isNaN) c += 1;
+//      });
 //      var exp = v.filter((d) => d > 0.5).count;
 //      expect(c, equals(exp));
-    });
+//    });
 
-    test("foreach works", () {
-      var c = 0;
+//    test("foreach works", () {
+//      var c = 0;
 //      v.foreach { i => if (!i.isNaN) c += 1 };
 //      var exp = v.count;
 //      expect(c, equals(exp));
-    });
+//    });
 
     test("reversed works", () {
       var res = v.reversed;
@@ -226,11 +230,11 @@ vecCheck() {
 
     test("fillNA works", () {
       var res = v.fillNA((_) => 5.0);
-      var exp = new Vec(v.contents.map((x) => x.isNaN ? 5.0 : x), st);
+      var exp = new Vec(v.contents.map((x) => x.isNaN ? 5.0 : x).toList(), st);
       expect(res.hasNA, isFalse);
       expect(res, equals(exp));
     });
-
+    /*
     test("sliceAt works", () {
       var i = r.nextInt(v.length);
       var slc = v.slice(1, i);

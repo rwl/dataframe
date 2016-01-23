@@ -20,7 +20,9 @@ library saddle.array;
 //import util.Random
 //import it.unimi.dsi.fastutil.ints.IntOpenHashSet
 
-import 'dart:math' show Random;
+//import 'dart:math' show Random;
+
+import '../scalar/scalar_tag.dart';
 
 final _array array = new _array();
 
@@ -33,78 +35,81 @@ class _array {
    * Create a new array consisting of a range of numbers from a lower bound up to, but
    * not including, an upper bound, at a particular increment (default 1)
    */
-  Array<int> range(int from, int until, [int step = 1]) {
-    val sz = math.ceil((until - from) / step.toDouble).toInt;
+  List<int> range(int from, int until, [int step = 1]) {
+    var sz = ((until - from) / step.toDouble()).ceil();
     var i = from;
     var k = 0;
-    val arr = new Array.ofDim<int>(sz);
+    var arr = new List<int>(sz);
     while (k < sz) {
       arr[k] = i;
       k += 1;
       i += step;
     }
-    arr;
+    return arr;
   }
 
   /**
    * Create a new initialized empty array
    */
-  List<T> empty /*[@spec(Boolean, Int, Long, Double) T: ST]*/ (int len) =>
-      new List<T>(len);
+  List /*<T>*/ empty /*[@spec(Boolean, Int, Long, Double) T: ST]*/ (
+          int len, ScalarTag st) =>
+      new List.generate(len, (i) => st.zero());
 
   /**
    * Return a uniform random permutation of the array
    */
-  Array<T> shuffle /*[@spec(Boolean, Int, Long, Double) T: ST]*/ (
-      Array<T> arr) {
+  List shuffle /*[@spec(Boolean, Int, Long, Double) T: ST]*/ (List arr) {
     var i = 0;
-    val sz = arr.length;
-    val result = arr.clone();
+    var sz = arr.length;
+    var result = new List.from(arr);
     while (i < sz) {
       // maintains the invariant that at position i in result, all items to the left of i
       // have been randomly selected from the remaining sz - i locations
-      val loc = i + math.floor((sz - i) * random.nextNonNegDouble).toInt;
-      val tmp = result(i);
+      var loc = i + ((sz - i) * random.nextNonNegDouble).floor();
+      var tmp = result(i);
       result[i] = result(loc);
       result[loc] = tmp;
       i += 1;
     }
-    result;
+    return result;
   }
 
   /**
    * Repeat elements of the array some number of times
    */
-  Array<T> tile /*[@spec(Boolean, Int, Long, Double) T: ST]*/ (
-      Array<T> arr, int n) {
-    require(n >= 0, "n must not be negative");
-    val sz = arr.length * n;
-    val res = empty /*<T>*/ (sz);
+  List tile /*[@spec(Boolean, Int, Long, Double) T: ST]*/ (List arr, int n) {
+    if (n < 0) {
+      throw new ArgumentError("n must not be negative");
+    }
+    var sz = arr.length * n;
+    var res = new List(sz);
     var i = 0;
     var j = 0;
     while (i < sz) {
-      res[i] = arr(j);
+      res[i] = arr[j];
       i += 1;
       j += 1;
-      if (j >= n) j = 0;
+      if (j >= n) {
+        j = 0;
+      }
     }
-    res;
+    return res;
   }
 
   // *** random number generators
-  /*private*/ var random = new Random();
+  /*private*/ var random; // = new Random();
 
   /**
    * Generate an array of random integers excluding 0
    */
-  Array<int> randInt(int sz) {
-    val arr = new Array.ofDim<int>(sz);
+  List<int> randInt(int sz) {
+    var arr = new List<int>(sz);
     var i = 0;
     while (i < sz) {
-      arr[i] = random.nextInt;
+      arr[i] = random.nextInt();
       i += 1;
     }
-    arr;
+    return arr;
   }
 
   /**
@@ -123,27 +128,27 @@ class _array {
   /**
    * Generate an array of random doubles on [-1, 1] excluding 0
    */
-  Array<double> randDouble(int sz) {
-    val arr = new Array.ofDim<double>(sz);
+  List<double> randDouble(int sz) {
+    var arr = new List<double>(sz);
     var i = 0;
     while (i < sz) {
-      arr[i] = random.nextDouble;
+      arr[i] = random.nextDouble();
       i += 1;
     }
-    arr;
+    return arr;
   }
 
   /**
    * Generate an array of random positive integers excluding 0
    */
-  Array<int> randIntPos(int sz) {
-    val arr = new Array.ofDim<int>(sz);
+  List<int> randIntPos(int sz) {
+    var arr = new List<int>(sz);
     var i = 0;
     while (i < sz) {
-      arr[i] = random.nextNonNegInt;
+      arr[i] = random.nextNonNegInt();
       i += 1;
     }
-    arr;
+    return arr;
   }
 
   /**
@@ -162,42 +167,42 @@ class _array {
   /**
    * Generate an array of random positive doubles on (0, 1]
    */
-  Array<double> randDoublePos(int sz) {
-    val arr = new Array.ofDim<double>(sz);
+  List<double> randDoublePos(int sz) {
+    var arr = new List<double>(sz);
     var i = 0;
     while (i < sz) {
-      arr[i] = random.nextNonNegDouble;
+      arr[i] = random.nextNonNegDouble();
       i += 1;
     }
-    arr;
+    return arr;
   }
 
   /**
    * Generate an array of random doubles which is normally distributed
    * with a mean of zero and stdev of one.
    */
-  Array<double> randNormal(int sz) {
-    val arr = new Array.ofDim<double>(sz);
+  List<double> randNormal(int sz) {
+    var arr = new List<double>(sz);
     var i = 0;
     while (i < sz) {
-      arr[i] = random.nextGaussian;
+      arr[i] = random.nextGaussian();
       i += 1;
     }
-    arr;
+    return arr;
   }
 
   /**
    * Generate an array of random doubles which is normally distributed
    * with a mean of mu and stdev of sigma.
    */
-  Array<double> randNormal2(int sz, double mu, double sigma) {
-    val arr = new Array.ofDim<double>(sz);
+  List<double> randNormal2(int sz, double mu, double sigma) {
+    var arr = new List<double>(sz);
     var i = 0;
     while (i < sz) {
-      arr[i] = mu + sigma * random.nextGaussian;
+      arr[i] = mu + sigma * random.nextGaussian();
       i += 1;
     }
-    arr;
+    return arr;
   }
 
   /**
@@ -219,7 +224,7 @@ class _array {
    */
   List take /*[@spec(Boolean, Int, Long, Double) T: ST]*/ (
       List arr, List<int> offsets, /*T*/ missing()) {
-    var res = empty /*<T>*/ (offsets.length);
+    var res = new List /*<T>*/ (offsets.length);
     var i = 0;
     while (i < offsets.length) {
       var idx = offsets[i];
@@ -243,19 +248,19 @@ class _array {
    *   sum(Array(1,2,3,4), Array(0,2,), 0)
    * }}}
    */
-  T sum /*[@spec(Boolean, Int, Long, Double) T: ST: NUM: ops.AddOp]*/ (
-      Array<T> arr, Array<int> offsets, T missing()) {
-    val st = implicitly[ST /*<T>*/];
-    val nm = implicitly[NUM /*<T>*/];
-    val op = implicitly[ops.AddOp /*<T>*/];
-    var res = st.zero(nm);
+  dynamic sum /*[@spec(Boolean, Int, Long, Double) T: ST: NUM: ops.AddOp]*/ (
+      List arr, List<int> offsets, ScalarTag st) {
+//    val st = implicitly[ST /*<T>*/];
+//    val nm = implicitly[NUM /*<T>*/];
+//    val op = implicitly[ops.AddOp /*<T>*/];
+    var res = st.zero(/*nm*/);
     var i = 0;
     while (i < offsets.length) {
-      val idx = offsets(i);
-      res = (idx == -1) ? op(res, missing) : op(res, arr(idx));
+      var idx = offsets[i];
+      res = (idx == -1) ? res + st.missing() : res + arr[idx];
       i += 1;
     }
-    res;
+    return res;
   }
 
   /**
@@ -274,98 +279,102 @@ class _array {
    *   send(Array(5,6,7), Array(2,0,1)) == Array(6,7,5)
    * }}}
    */
-  Array<T> send /*[@spec(Boolean, Int, Long, Double) T: ST]*/ (
-      Array<T> arr, Array<int> offsets) {
-    var res = empty /*<T>*/ (offsets.length);
+  List send /*[@spec(Boolean, Int, Long, Double) T: ST]*/ (
+      List arr, List<int> offsets) {
+    var res = new List /*<T>*/ (offsets.length);
     var i = 0;
     while (i < offsets.length) {
-      res[offsets(i)] = arr(i);
+      res[offsets[i]] = arr[i];
       i += 1;
     }
-    res;
+    return res;
   }
 
   /**
    * Remove values from array arr at particular offsets so as to
    * produce a new array.
    */
-  Array<T> remove /*[@spec(Boolean, Int, Long, Double) T: ST]*/ (
-      Array<T> arr, Array<int> locs) {
-    val set = new IntOpenHashSet(locs.length);
+  List remove /*[@spec(Boolean, Int, Long, Double) T: ST]*/ (
+      List arr, List<int> locs) {
+    var set = new /*IntOpenHash*/ Set(); //locs.length);
 
     var i = 0;
     while (i < locs.length) {
-      val loc = locs(i);
-      if (loc >= 0 && loc < arr.length) set.add(loc);
+      var loc = locs[i];
+      if (loc >= 0 && loc < arr.length) {
+        set.add(loc);
+      }
       i += 1;
     }
 
-    val len = arr.length - set.size();
-    val res = empty /*<T>*/ (len);
+    var len = arr.length - set.length;
+    var res = new List(len); //empty /*<T>*/ (len);
 
     i = 0;
     var k = 0;
     while (i < arr.length) {
       if (!set.contains(i)) {
-        res[k] = arr(i);
+        res[k] = arr[i];
         k += 1;
       }
       i += 1;
     }
 
-    res;
+    return res;
   }
 
   /**
    * Put a single value into array arr at particular offsets, so as to produce a new array.
    */
-  Array<T> put /*[@spec(Boolean, Int, Long, Double) T]*/ (
-      Array<T> arr, Array<int> offsets, T value) {
-    val res = arr.clone();
+  List put /*[@spec(Boolean, Int, Long, Double) T]*/ (
+      List arr, List<int> offsets, value) {
+    var res = new List.from(arr);
     var i = 0;
     while (i < offsets.length) {
-      val idx = offsets(i);
+      var idx = offsets[i];
       res[idx] = value;
       i += 1;
     }
-    res;
+    return res;
   }
 
   /**
    * Put a value into array arr at particular offsets provided by a boolean array where its locations
    * are true, so as to produce a new array.
    */
-  Array<T> put2 /*[@spec(Boolean, Int, Long, Double) T]*/ (
-      Array<T> arr, Array<bool> offsets, T value) {
-    val res = arr.clone();
+  List put2 /*[@spec(Boolean, Int, Long, Double) T]*/ (
+      List arr, List<bool> offsets, value) {
+    var res = new List.from(arr);
     var i = 0;
     while (i < offsets.length) {
-      if (offsets(i)) res[i] = value;
+      if (offsets[i]) {
+        res[i] = value;
+      }
       i += 1;
     }
-    res;
+    return res;
   }
 
   /**
    * Put n values into array arr at particular offsets, where the values come from another array,
    * so as to produce a new array.
    */
-  Array<T> putn /*[@spec(Boolean, Int, Long, Double) T]*/ (
-      Array<T> arr, Array<int> offsets, Array<T> values) {
-    val res = arr.clone();
+  List putn /*[@spec(Boolean, Int, Long, Double) T]*/ (
+      List arr, List<int> offsets, List values) {
+    var res = new List.from(arr);
     var i = 0;
     while (i < offsets.length) {
-      val idx = offsets(i);
-      res[idx] = values(i);
+      var idx = offsets[i];
+      res[idx] = values[i];
       i += 1;
     }
-    res;
+    return res;
   }
 
   /**
    * Fill array with value
    */
-  fill /*[@spec(Boolean, Int, Long, Double) T: ST]*/ (Array<T> arr, T v) {
+  void fill /*[@spec(Boolean, Int, Long, Double) T: ST]*/ (List arr, v) {
     var i = 0;
     while (i < arr.length) {
       arr[i] = v;
@@ -383,25 +392,25 @@ class _array {
    *
    * The endpoint of the interval can optionally be excluded.
    */
-  Array<double> linspace(double start, double stop,
+  List<double> linspace(double start, double stop,
       [int _num = 50, bool endpoint = true]) {
-    if (num <= 0) {
-      new Array.empty<double>();
-    } else if (num == 1) {
-      Array(start);
+    if (_num <= 0) {
+      return [];
+    } else if (_num == 1) {
+      return [start];
     } else {
-      val result = new Array.ofDim<double>(num);
-      val step = (stop - start) / (num - (endpoint ? 1 : 0));
+      var result = new List<double>(_num);
+      var step = (stop - start) / (_num - (endpoint ? 1 : 0));
 
       var i = 1;
-      val n = num - 1;
+      var n = _num - 1;
       result[0] = start;
       while (i < n) {
         result[i] = result(i - 1) + step;
         i += 1;
       }
       result[n] = stop;
-      result;
+      return result;
     }
   }
 
@@ -411,8 +420,8 @@ class _array {
    *
    * @param arr Array to sort
    */
-  Array<int> argsort /*[T: ST: ORD]*/ (Array<T> arr) =>
-      implicitly[ST /*<T>*/].makeSorter.argSorted(arr);
+  List<int> argsort /*[T: ST: ORD]*/ (List arr, ScalarTag st) =>
+      st.makeSorter().argSorted(arr);
 
   /**
    * Stable sort of array argument (not destructive), using radix sort
@@ -420,120 +429,123 @@ class _array {
    *
    * @param arr Array to sort
    */
-  Array<T> sort /*[T: ST: ORD]*/ (Array<T> arr) =>
-      implicitly[ST /*<T>*/].makeSorter.sorted(arr);
+  List sort /*[T: ST: ORD]*/ (List arr, ScalarTag st) =>
+      st.makeSorter().sorted(arr);
 
   /**
    * Reverse an array
    */
-  Array<T> reverse /*[@spec(Boolean, Int, Long, Double) T: ST]*/ (
-      Array<T> arr) {
-    val end = arr.length - 1;
-    val newArr = new Array<T>(end + 1);
+  List reverse /*[@spec(Boolean, Int, Long, Double) T: ST]*/ (List arr) {
+    var end = arr.length - 1;
+    var newArr = new List(end + 1);
 
     var i = 0;
     while (i <= end) {
-      newArr[i] = arr(end - i);
+      newArr[i] = arr[end - i];
       i += 1;
     }
-    newArr;
+    return newArr;
   }
 
   /**
    * Filter an array based on a predicate function, wherever that predicate is true
    */
-  Array<T> filter /*[@spec(Boolean, Int, Long, Double) T: ST]*/ (
-      bool f(T arg)) /*(Array<T> arr)*/ {
+  List filter /*[@spec(Boolean, Int, Long, Double) T: ST]*/ (
+      bool f(arg), List arr) /*(Array<T> arr)*/ {
     var i = 0;
     var count = 0;
     while (i < arr.length) {
-      val v = arr(i);
+      var v = arr[i];
       if (f(v)) count += 1;
       i += 1;
     }
     if (count == arr.length) {
-      arr;
+      return arr;
     } else {
-      val res = empty /*<T>*/ (count);
+      var res = /*empty <T>*/ new List(count);
       i = 0;
       count = 0;
       while (i < arr.length) {
-        val v = arr(i);
+        var v = arr[i];
         if (f(v)) {
           res[count] = v;
           count += 1;
         }
         i += 1;
       }
-      res;
+      return res;
     }
   }
 
   /**
    * Flatten a sequence of arrays into a single array
    */
-  Array<T> flatten /*[@spec(Boolean, Int, Long, Double) T: ST]*/ (
-      Seq<Array<T>> arrs) {
-    val size = arrs.map(_.length).sum;
-    val newArr = new Array<T>(size);
+  List flatten /*[@spec(Boolean, Int, Long, Double) T: ST]*/ (
+      Iterable<List> arrs) {
+    var size = arrs.map((a) => a.length).reduce((a, b) => a + b);
+    var newArr = new List(size);
     var i = 0;
 
-    arrs.foreach((a) {
+    arrs.forEach((List a) {
       var l = a.length;
       var j = 0;
       while (j < l) {
-        newArr[i + j] = a(j);
+        newArr[i + j] = a[j];
         j += 1;
       }
       i += l;
     });
 
-    newArr;
+    return newArr;
   }
 
   /**
    * Return the integer offset of the minimum element, or -1 for an empty array
    */
-  int argmin /*[@spec(Int, Long, Double) T: ST: ORD: NUM]*/ (Array<T> arr) {
-    val sca = implicitly[ST /*<T>*/];
-    val sz = arr.length;
+  int argmin /*[@spec(Int, Long, Double) T: ST: ORD: NUM]*/ (
+      List arr, ScalarTag sca) {
+//    var sca = implicitly[ST /*<T>*/];
+    var sz = arr.length;
     if (sz == 0) {
-      -1;
+      return -1;
     } else {
-//      var min, arg = (sca.isMissing(arr(0))) ? (sca.inf, -1) : (arr(0), 0);
+      var min = sca.isMissing(arr[0]) ? sca.inf() : arr[0];
+      var arg = sca.isMissing(arr[0]) ? -1 : 0;
       var i = 1;
       while (i < sz) {
-        val v = arr(i);
+        var v = arr[i];
         if (sca.notMissing(v) && sca.compare(min, v) == 1) {
-          min = arr(i);
+          min = arr[i];
           arg = i;
         }
         i += 1;
       }
-      arg;
+      return arg;
     }
   }
 
   /**
    * Return the integer offset of the maximum element, or -1 for an empty array
    */
-  int argmax /*[@spec(Int, Long, Double) T: ST: ORD: NUM]*/ (Array<T> arr) {
-    val sca = implicitly[ST /*<T>*/];
-    val sz = arr.length;
+  int argmax /*[@spec(Int, Long, Double) T: ST: ORD: NUM]*/ (
+      List arr, ScalarTag sca) {
+//    val sca = implicitly[ST /*<T>*/];
+    var sz = arr.length;
     if (sz == 0) {
-      -1;
+      return -1;
     } else {
-//      var max, arg = (sca.isMissing(arr(0))) ? (sca.negInf, -1) : (arr(0), 0);
+      var max = sca.isMissing(arr[0]) ? sca.negInf() : arr[0];
+      var arg = sca.isMissing(arr[0]) ? -1 : 0;
       var i = 1;
       while (i < sz) {
-        val v = arr(i);
+        var v = arr[i];
         if (sca.notMissing(v) && sca.compare(v, max) == 1) {
-          max = arr(i);
+          max = arr[i];
           arg = i;
         }
         i += 1;
       }
-      arg;
+      return arg;
     }
   }
 }
