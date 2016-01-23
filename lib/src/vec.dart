@@ -99,7 +99,7 @@ import 'stats/vec_stats.dart';
    * representation might contain primitive NA's that need to be boxed so that
    * they aren't utilized unknowingly in calculations.
    */
-//  /*private[saddle]*/ T apply(int loc);
+  /*private[saddle]*/ T apply_(int loc);
 
   /**
    * Set to true when the vec is shifted over the backing array
@@ -114,15 +114,15 @@ import 'stats/vec_stats.dart';
    * @param loc offset into Vec
    */
   Scalar<T> at(int loc) {
-    /*implicit*/ val st = scalarTag;
-    return apply(loc);
+    /*implicit*/ var st = scalarTag;
+    return new Scalar(apply_(loc));
   }
 
   /**
    * Access an unboxed element of a Vec[A] at a single location
    * @param loc offset into Vec
    */
-  T raw(int loc); // => apply(loc);
+  T raw(int loc) => apply_(loc);
 
   /**
    * Slice a Vec at a sequence of locations, e.g.
@@ -512,18 +512,29 @@ import 'stats/vec_stats.dart';
    *
    * NB: to avoid boxing, is overwritten in child classes
    */
-  @override
-  bool equals(o) /*o match*/ {
-//    case rv: Vec[_] => (this eq rv) || (this.length == rv.length) && {
-//      var i = 0
-//      var eq = true
-//      while(eq && i < this.length) {
-//        eq &&= (apply(i) == rv(i) || this.scalarTag.isMissing(apply(i)) && rv.scalarTag.isMissing(rv(i)))
-//        i += 1
-//      }
-//      eq
-//    }
-//    case _ => false
+//  @override
+  bool operator ==(o) {
+    if (o is Vec) {
+      Vec rv = o;
+      if (identical(this, rv)) {
+        return true;
+      } else if (this.length != rv.length) {
+        return false;
+      } else {
+        var i = 0;
+        var eq = true;
+        while (eq && i < this.length) {
+          eq = eq &&
+              (this[i] == rv[i] ||
+                  this.scalarTag.isMissing(this[i]) &&
+                      rv.scalarTag.isMissing(rv[i]));
+          i += 1;
+        }
+        return eq;
+      }
+    } else {
+      return false;
+    }
   }
 
   /**

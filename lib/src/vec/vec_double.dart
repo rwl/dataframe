@@ -23,23 +23,26 @@ library saddle.vec;
 //import org.saddle.scalar._
 
 import '../vec.dart';
+import '../scalar/scalar_tag_double.dart';
 
 class VecDouble extends Vec<double> {
   //self =>
-  VecDouble(List<double> values);
+  List<double> values;
+
+  VecDouble(this.values) : super.internal();
 
   int get length => values.length;
 
   get scalarTag => ScalarTagDouble;
 
-  double apply(int i) => values(i);
+  double apply_(int i) => values[i];
 
-  Vec<double> copy() => Vec(toArray.clone());
+  Vec<double> copy() => new Vec(new List.from(toArray()), scalarTag);
 
   Vec<double> take(List<int> locs) =>
-      array.take(toArray, locs, scalarTag.missing);
+      array.take(toArray(), locs, scalarTag.missing);
 
-  Vec<double> without(List<int> locs) => array.remove(toArray, locs);
+  Vec<double> without(List<int> locs) => array.remove(toArray(), locs);
 
   Vec<double> dropNA() => filter((_) => true);
 
@@ -49,7 +52,7 @@ class VecDouble extends Vec<double> {
 
   Vec<C> concat /*[B, C]*/ (
           Vec<B> v) /*(implicit wd: Promoter[Double, B, C], mc: ST[C])*/ =>
-      Vec(util.Concat.append /*[Double, B, C]*/ (toArray, v.toArray));
+      Vec(util.Concat.append /*[Double, B, C]*/ (toArray(), v.toArray()));
 
   B foldLeft /*[@spec(Boolean, Int, Long, Double) B: ST]*/ (
           B init) /*(B f(B, Double))*/ =>
@@ -142,7 +145,7 @@ class VecDouble extends Vec<double> {
   List<double> toArray() {
     // need to check if we're a view on an array
     if (!needsCopy) {
-      values;
+      return values;
     } else {
       val buf = new Array<double>(length);
       var i = 0;
@@ -150,23 +153,33 @@ class VecDouble extends Vec<double> {
         buf[i] = apply(i);
         i += 1;
       }
-      buf;
+      return buf;
     }
   }
 
   /** Default equality does an iterative, element-wise equality check of all values. */
-  @override
-  bool equals(o) {
-//    o match {
-//    case rv: VecDouble => (this eq rv) || (this.length == rv.length) && {
-//      var i = 0
-//      var eq = true
-//      while(eq && i < this.length) {
-//        eq &&= (apply(i) == rv(i) || this.scalarTag.isMissing(apply(i)) && rv.scalarTag.isMissing(rv(i)))
-//        i += 1
-//      }
-//      eq
-//    }
-//    case _ => super.equals(o)
+//  @override
+  bool operator ==(o) {
+    if (o is VecDouble) {
+      VecDouble rv = o;
+      if (identical(this, rv)) {
+        return true;
+      } else if (this.length != rv.length) {
+        return false;
+      } else {
+        var i = 0;
+        var eq = true;
+        while (eq && i < this.length) {
+          eq = eq &&
+              (this[i] == rv[i] ||
+                  this.scalarTag.isMissing(this[i]) &&
+                      rv.scalarTag.isMissing(rv[i]));
+          i += 1;
+        }
+        return eq;
+      }
+    } else {
+      return super == o;
+    }
   }
 }

@@ -24,6 +24,9 @@ library saddle.scalar;
 //import org.saddle.locator.LocatorDouble
 //import org.saddle.array.Sorter
 
+import '../vec.dart';
+import '../vec/vec_double.dart';
+
 import 'scalar_tag.dart';
 
 final _ScalarTagDouble ScalarTagDouble = new _ScalarTagDouble();

@@ -28,6 +28,7 @@ import '../vec.dart';
 import '../mat.dart';
 
 import 'scalar_tag_int.dart' as st_int;
+import 'scalar_tag_double.dart' as st_dbl;
 
 /**
  * Typeclass definition for scalar tags. A ScalarTag contains important meta-data regarding
@@ -91,7 +92,7 @@ abstract class ScalarTag<T> /*[@spec(Boolean, Int, Long, Float, Double) T]*/
   /*implicit*/ static final ScalarTag stInt = st_int.ScalarTagInt;
 //  /*implicit*/ static final ScalarTag stFloat = ScalarTagFloat;
 //  /*implicit*/ static final ScalarTag stLong = ScalarTagLong;
-  /*implicit*/ static final ScalarTag stDouble = ScalarTagDouble;
+  /*implicit*/ static final ScalarTag stDouble = st_dbl.ScalarTagDouble;
   /*implicit*/ static final ScalarTag stTime = ScalarTagTime;
 }
 
