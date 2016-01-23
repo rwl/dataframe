@@ -19,17 +19,20 @@ library saddle.scalar;
 //import org.saddle._
 //import java.util.NoSuchElementException
 
+import 'scalar_tag.dart';
+
 /**
  * Scalar wrapper for a single element of a vector-like container.
  *
  * @tparam T The type of element wrapped
  */
-/*sealed abstract*/ class Scalar<T> {
+/*sealed*/ abstract class Scalar<T> {
+  final ScalarTag st;
   bool get isNA;
   T get get;
 
   /*@inline final*/ Scalar<B> map /*[B: ST]*/ (B f(T arg)) =>
-      isNA ? NA : new Value(f(this.get));
+      isNA ? NA : new Value(f(this.get), st);
 
   /*@inline final*/ Scalar<B> flatMap /*[B]*/ (Scalar<B> f(T arg)) =>
       isNA ? NA : f(this.get);
@@ -40,7 +43,7 @@ library saddle.scalar;
 //}
 
 //class Scalar {
-  Scalar.internal();
+  Scalar.internal(this.st);
 
   /** An Scalar factory which creates Value(x) when the argument is neither null nor an NA primitive;
     * otherwise produces NA.
@@ -48,10 +51,10 @@ library saddle.scalar;
     *  @param  x the value
     *  @return Value(value) if value not null or NA primitive; otherwise NA
     *  */
-  factory Scalar /*<T> apply*/ /*[T: ST]*/ (T x) {
-    return (x == null /*|| implicitly[ST<T>].isMissing(x)*/)
+  factory Scalar /*<T> apply*/ /*[T: ST]*/ (T x, ScalarTag st) {
+    return (x == null || /*implicitly[ST<T>]*/ st.isMissing(x))
         ? NA
-        : new Value(x);
+        : new Value(x, st);
   }
 
   /**
@@ -85,7 +88,7 @@ library saddle.scalar;
   /**
    * Provides implicit boxing of primitive to scalar
    */
-  /*implicit*/ Scalar<T> scalarBox /*[T : ST]*/ (T el) => Scalar(el);
+  /*implicit*/ Scalar<T> scalarBox /*[T : ST]*/ (T el) => new Scalar(el, st);
 
   /**
    * Provides implicit unboxing from double scalar to primitive
@@ -110,9 +113,12 @@ library saddle.scalar;
 }
 
 /*case*/ class Value /*[+T : ST]*/ <T> extends Scalar<T> {
+  ScalarTag st;
   T el;
-  Value(this.el) : super.internal();
-  bool get isNA => implicitly /*[ST<T>]*/ .isMissing(el);
+  Value(this.el, ScalarTag st_)
+      : st = st_,
+        super.internal(st_);
+  bool get isNA => /*implicitly [ST<T>]*/ st.isMissing(el);
   T get get => el;
 
   @override
@@ -122,7 +128,7 @@ library saddle.scalar;
 final _NA NA = new _NA();
 
 /*case object*/ class _NA extends Scalar {
-  _NA() : super.internal();
+  _NA() : super.internal(null);
 
   bool get isNA => true;
   dynamic get get => throw new NoSuchElementException("NA.get");

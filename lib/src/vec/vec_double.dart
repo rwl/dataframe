@@ -23,7 +23,10 @@ library saddle.vec;
 //import org.saddle.scalar._
 
 import '../vec.dart';
+import '../scalar/scalar_tag.dart';
 import '../scalar/scalar_tag_double.dart';
+import '../array/array.dart';
+import 'vec_impl.dart';
 
 class VecDouble extends Vec<double> {
   //self =>
@@ -40,7 +43,7 @@ class VecDouble extends Vec<double> {
   Vec<double> copy() => new Vec(new List.from(toArray()), scalarTag);
 
   Vec<double> take(List<int> locs) =>
-      array.take(toArray(), locs, scalarTag.missing);
+      new Vec(array.take(toArray(), locs, scalarTag.missing), scalarTag);
 
   Vec<double> without(List<int> locs) => array.remove(toArray(), locs);
 
@@ -70,8 +73,9 @@ class VecDouble extends Vec<double> {
           int winSz, B f(Vec<double> arg)) =>
       VecImpl.rolling(this)(winSz, f);
 
-  Vec<B> map /*[@spec(Boolean, Int, Long, Double) B: ST]*/ (B f(double arg)) =>
-      VecImpl.map /*[Double, B]*/ (this)(f);
+  Vec /*<B>*/ map /*[@spec(Boolean, Int, Long, Double) B: ST]*/ (
+          dynamic f(double arg), ScalarTag scb) =>
+      VecImpl.map /*[Double, B]*/ (this, f, scb);
 
   Vec<B> flatMap /*[@spec(Boolean, Int, Long, Double) B : ST]*/ (
           Vec<B> f(double arg)) =>

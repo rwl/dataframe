@@ -26,6 +26,7 @@ library saddle.scalar;
 
 import '../vec.dart';
 import '../vec/vec_double.dart';
+import '../buffer.dart';
 
 import 'scalar_tag.dart';
 

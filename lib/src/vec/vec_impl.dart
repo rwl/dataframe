@@ -20,6 +20,7 @@ library saddle.vec;
 //import org.saddle._
 
 import '../vec.dart';
+import '../scalar/scalar_tag.dart';
 
 // Specialized method implementations for code reuse in implementations of Vec; NA-safe
 /*private[saddle]*/ class VecImpl {
@@ -86,23 +87,22 @@ import '../vec.dart';
     acc;
   }
 
-  static Vec<
-      B> map /*[@spec(Boolean, Int, Long, Double) A: ST, @spec(Boolean, Int, Long, Double) B: ST]*/ (
-      Vec<A> vec) /*(f: A => B)*/ {
-    var sca = implicitly[ST[A]];
-    var scb = implicitly[ST[B]];
-    var buf = Array.ofDim[B](vec.length);
+  static Vec /*<B>*/ map /*[@spec(Boolean, Int, Long, Double) A: ST, @spec(Boolean, Int, Long, Double) B: ST]*/ (
+      Vec /*<A>*/ vec, dynamic f(dynamic a), ScalarTag scb) /*(f: A => B)*/ {
+    var sca = vec.scalarTag; //implicitly[ST[A]];
+//    var scb = implicitly[ST[B]];
+    var buf = new List(vec.length);
     var i = 0;
     while (i < vec.length) {
-      A v = vec(i);
+      var v = vec[i];
       if (sca.isMissing(v)) {
-        buf[i] = scb.missing;
+        buf[i] = scb.missing();
       } else {
         buf[i] = f(v);
       }
       i += 1;
     }
-    Vec(buf);
+    return new Vec(buf, scb);
   }
 
   static Vec<
@@ -263,16 +263,16 @@ import '../vec.dart';
   }
 
   static bool findOneNA /*[@spec(Boolean, Int, Long, Double) A: ST]*/ (
-      Vec<A> vec) {
-    val sa = implicitly[ST[A]];
+      Vec /*<A>*/ vec) {
+    var sa = vec.scalarTag; //implicitly[ST[A]];
     var ex = false;
     var i = 0;
     while (!ex && i < vec.length) {
-      A v = vec(i);
+      var v = vec[i];
       ex = sa.isMissing(v);
       i += 1;
     }
-    ex;
+    return ex;
   }
 
   static bool isAllNA /*[@spec(Boolean, Int, Long, Double) A: ST]*/ (
@@ -302,17 +302,19 @@ import '../vec.dart';
     else -1;
   }
 
-  static Vec<A> filter /*[@spec(Boolean, Int, Long, Double) A: ST]*/ (
-      Vec<A> vec) /*(bool pred(A arg))*/ {
-//    val sa = implicitly[ST[A]];
+  static Vec /*<A>*/ filter /*[@spec(Boolean, Int, Long, Double) A: ST]*/ (
+      Vec /*<A>*/ vec, bool pred(/*<A>*/ arg)) /*(bool pred(A arg))*/ {
+    var sa = vec.scalarTag; //implicitly[ST[A]];
     var i = 0;
-    val buf = Buffer[A]();
+    var buf = []; //Buffer[A]();
     while (i < vec.length) {
-      A v = vec(i);
-      if (sa.notMissing(v) && pred(v)) buf.add(v);
+      var v = vec[i];
+      if (sa.notMissing(v) && pred(v)) {
+        buf.add(v);
+      }
       i += 1;
     }
-    Vec(buf.toArray);
+    return new Vec(buf, sa);
   }
 
   static Vec<A> filterAt /*[@spec(Boolean, Int, Long, Double) A: ST]*/ (

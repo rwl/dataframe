@@ -36,7 +36,7 @@ final Random r = new Random();
 Vec<double> vecDoubleWithNA() {
   var n = r.nextInt(17) + 3;
   var lst = new List<double>.generate(n, (_) {
-    if (r.nextInt(10) == 0) {
+    if (r.nextInt(10) == 5) {
       return double.NAN;
     } else {
       return (r.nextDouble() * 1e3) * (r.nextBool() ? 1 : -1);
@@ -94,11 +94,11 @@ vecCheck() {
       expect(v, equals(new Vec(v.contents, st)));
       expect(v, equals(v));
     });
-/*
+
     test("single element access of vector", () {
       var i = r.nextInt(v.length - 1);
       List data = v.contents;
-      expect(v.at(i).isNA || v.at(i) == new Value(data[i]), isTrue);
+      expect(v.at(i).isNA || v.at(i) == new Value(data[i], st), isTrue);
       expect(v.raw(i).isNaN || v.raw(i) == data[i], isTrue);
     });
 
@@ -129,33 +129,34 @@ vecCheck() {
       }
     });
 
-    test("concat works", () {
-      var data = v.contents;
-      expect(v.concat(v), equals(new Vec(concat([data, data]).toList(), st)));
-    });
+//    test("concat works", () {
+//      var data = v.contents;
+//      expect(v.concat(v), equals(new Vec(concat([data, data]).toList(), st)));
+//    });
 
     test("map works", () {
       var data = v.contents;
-      expect(
-          v.map((b) => b + 1.0), equals(new Vec(data.map((b) => b + 1.0), st)));
+      expect(v.map((b) => b + 1.0, st),
+          equals(new Vec(data.map((b) => b + 1.0).toList(), st)));
 //        expect(v.map(d => 5.0), equals(Vec(data.map(d => if (d.isNaN) na.to[Double] else 5.0));
 //        expect(v.map(d => 5), equals(Vec[Int](data.map(d => if (d.isNaN) na.to[Int] else 5));
     });
 
-    test("zipmap works", () {
+//    test("zipmap works", () {
 //      expect(v.zipMap(v)(_ + _), equals(v * 2.0));
-    });
+//    });
 
     test("dropNA works", () {
       var data = v.contents;
-      expect(v.dropNA, equals(new Vec(data.where((d) => !d.isNaN), st)));
+      expect(v.dropNA(),
+          equals(new Vec(data.where((d) => !d.isNaN).toList(), st)));
     });
 
     test("hasNA works", () {
       var data = v.contents;
-      expect(v.hasNA, equals((data.contains(double.NAN))));
+      expect(v.hasNA, equals((data.where((d) => d.isNaN).isNotEmpty)));
     });
-
+    /*
     test("findOne works", () {
       var v = new Vec<double>([1.0, 2, 3, st.missing(), 5], st);
       expect(v.findOne((d) => d == 3.0), equals(2));

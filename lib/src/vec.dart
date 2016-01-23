@@ -28,6 +28,7 @@ import 'scalar/scalar.dart';
 
 import 'scalar/scalar_tag.dart';
 import 'stats/vec_stats.dart';
+import 'vec/vec_impl.dart';
 
 // import java.io.OutputStream
 
@@ -115,7 +116,7 @@ import 'stats/vec_stats.dart';
    */
   Scalar<T> at(int loc) {
     /*implicit*/ var st = scalarTag;
-    return new Scalar(apply_(loc));
+    return new Scalar(apply_(loc), st);
   }
 
   /**
@@ -162,18 +163,16 @@ import 'stats/vec_stats.dart';
    * Access the first element of a Vec[A], or NA if length is zero
    */
   Scalar<T> get first {
-    /*implicit*/ val st = scalarTag;
-    if (length > 0) apply(0);
-    else NA;
+    /*implicit*/ var st = scalarTag;
+    return length > 0 ? new Scalar(apply_(0), st) : NA;
   }
 
   /**
    * Access the last element of a Vec[A], or NA if length is zero
    */
   Scalar<T> get last {
-    /*implicit*/ val st = scalarTag;
-    if (length > 0) apply(length - 1);
-    else NA;
+    /*implicit*/ var st = scalarTag;
+    return length > 0 ? new Scalar(apply_(length - 1), st) : NA;
   }
 
   // ----------
@@ -265,7 +264,8 @@ import 'stats/vec_stats.dart';
   /**
    * Map a function over the elements of the Vec, as in scala collections library
    */
-  Vec<B> map /*<@spec(Boolean, Int, Long, Double) B: ST>*/ (B f(T arg));
+  Vec /*<B>*/ map /*<@spec(Boolean, Int, Long, Double) B: ST>*/ (
+      dynamic f(T arg), ScalarTag scb);
 
   /**
    * Maps a function over elements of the Vec and flattens the result.
@@ -368,7 +368,7 @@ import 'stats/vec_stats.dart';
    * Return Vec whose elements satisfy a predicate function
    * @param pred Predicate function from A => Boolean
    */
-  Vec<T> filter(bool pred(T arg)) => VecImpl.filter(this)(pred)(scalarTag);
+  Vec<T> filter(bool pred(T arg)) => VecImpl.filter(this, pred); //(scalarTag);
 
   /**
    * Return vec whose offets satisfy a predicate function
