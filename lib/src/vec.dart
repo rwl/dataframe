@@ -275,14 +275,14 @@ abstract class Vec<
    * Maps a function over elements of the Vec and flattens the result.
    */
   Vec /*<B>*/ flatMap /*<Boolean, Int, Long, Double) B : ST>*/ (
-      Vec /*<B>*/ f(T arg));
+      Vec /*<B>*/ f(T arg), ScalarTag sb);
 
   /**
    * Left fold over the elements of the Vec, as in scala collections library
    */
   /*B*/ dynamic foldLeft /*<Boolean, Int, Long, Double) B: ST>*/ (
       /*B*/ init,
-      f(arg1, arg2)) /*(f: (B, T)*/;
+      f(arg1, T arg2)) /*(f: (B, T)*/;
 
   /**
    * Left scan over the elements of the Vec, as in scala collections library
@@ -290,7 +290,8 @@ abstract class Vec<
 //  def scanLeft[@spec(Boolean, Int, Long, Double) B: ST](init: B)(f: (B, T) => B): Vec[B]
   Vec /*<B>*/ scanLeft /*[@spec(Boolean, Int, Long, Double) B: ST]*/ (
       /*B*/ init,
-      dynamic f(arg1, arg2)) /*(B f(B, T))*/;
+      dynamic f(arg1, T arg2),
+      ScalarTag sb) /*(B f(B, T))*/;
 
   /**
    * Filtered left fold over the elements of the Vec, as in scala collections library
@@ -298,7 +299,7 @@ abstract class Vec<
   /*B*/ filterFoldLeft /*[@spec(Boolean, Int, Long, Double) B: ST]*/ (
       bool pred(T arg),
       init,
-      dynamic f(arg1, arg2)) /*(B init)(B f(B arg, T arg))*/;
+      dynamic f(arg1, T arg2)) /*(B init)(B f(B arg, T arg))*/;
 
   /**
    * Filtered left scan over elements of the Vec, as in scala collections library
@@ -306,7 +307,8 @@ abstract class Vec<
   Vec /*<B>*/ filterScanLeft /*[@spec(Boolean, Int, Long, Double) B: ST]*/ (
       bool pred(T arg),
       init,
-      dynamic f(arg1, arg2)) /*(B init)(B f(B arg, T arg))*/;
+      dynamic f(arg1, T arg2),
+      ScalarTag sb) /*(B init)(B f(B arg, T arg))*/;
 
   /**
    * Left fold that folds only while the test condition holds true. As soon as the condition function yields
@@ -316,8 +318,9 @@ abstract class Vec<
    */
   /*B*/ dynamic foldLeftWhile /*[@spec(Boolean, Int, Long, Double) B: ST]*/ (
       /*B*/ init,
-      dynamic f(arg1, arg2),
-      bool cond(arg1, arg2)) /*(B f(B arg, T arg))(bool cond(B arg, T arg2))*/;
+      dynamic f(arg1, T arg2),
+      bool cond(
+          arg1, T arg2)) /*(B f(B arg, T arg))(bool cond(B arg, T arg2))*/;
 
   /**
    * Zips Vec with another Vec and applies a function to the paired elements. If either of the pair is NA, the
@@ -330,7 +333,7 @@ abstract class Vec<
    */
   Vec /*<C>*/ zipMap /*[@spec(Int, Long, Double) B: ST,
              @spec(Boolean, Int, Long, Double) C: ST]*/
-  (Vec /*<B>*/ other, /*C*/ f(arg1, arg2)); //(C f(T, B));
+  (Vec /*<B>*/ other, /*C*/ f(T arg1, arg2), ScalarTag sc); //(C f(T, B));
 
   /**
    * Drop the elements of the Vec which are NA
@@ -406,7 +409,7 @@ abstract class Vec<
    * @tparam B Result type of function
    */
   Vec /*<B>*/ rolling /*[@spec(Boolean, Int, Long, Double) B: ST]*/ (
-      int winSz, dynamic f(Vec<T> arg));
+      int winSz, dynamic f(Vec<T> arg), ScalarTag sb);
 
   /**
    * Yield a Vec whose elements have been sorted (in ascending order)

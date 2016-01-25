@@ -177,7 +177,7 @@ class VecDouble extends Vec<double> with DoubleStats {
       var buf = new List<double>(length);
       var i = 0;
       while (i < length) {
-        buf[i] = this[i];
+        buf[i] = apply_(i);
         i += 1;
       }
       return buf;
@@ -195,10 +195,10 @@ class VecDouble extends Vec<double> with DoubleStats {
         return false;
       } else {
         var i = 0;
-        var eq = true;
+        bool eq = true;
         while (eq && i < this.length) {
           eq = eq &&
-              (this[i] == rv[i] ||
+              (apply_(i) == rv[i] ||
                   this.scalarTag.isMissing(this[i]) &&
                       rv.scalarTag.isMissing(rv[i]));
           i += 1;
@@ -223,13 +223,13 @@ class SplitVecDouble extends VecDouble {
   int get length => ((ub - b) / stride).ceil();
 
   @override
-  double operator [](int i) {
+  double apply_(int i) {
     var loc = b + i * stride;
     if (loc >= ub) {
       throw new IndexError(
           loc, this, "Cannot access location $loc >= length $ub");
     }
-    return super[loc];
+    return super.apply_(loc);
   }
 
   @override
@@ -244,7 +244,7 @@ class ShiftVecDouble extends VecDouble {
   get length => super.length;
 
   @override
-  double operator [](int i) {
+  double apply_(int i) {
     var loc = b + i;
     if (loc >= e || loc < b) {
       throw new IndexError(
@@ -252,7 +252,7 @@ class ShiftVecDouble extends VecDouble {
     } else if (loc >= super.length || loc < 0) {
       return scalarTag.missing();
     } else {
-      return super[loc];
+      return super.apply_(loc);
     }
   }
 
