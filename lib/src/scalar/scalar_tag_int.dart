@@ -32,9 +32,7 @@ import '../index.dart';
 import '../locator/locator.dart';
 import '../locator/locator_int.dart';
 import '../buffer.dart';
-
-const int MIN_INT = -9007199254740991; //-2147483648;
-const int MAX_INT = 9007199254740991; //2147483647;
+import '../util/util.dart';
 
 _ScalarTagInt ScalarTagInt = new _ScalarTagInt();
 
