@@ -14,7 +14,7 @@
  * limitations under the License.
  **/
 
-library saddle.vec;
+library saddle.vec.double;
 
 //import scala.{specialized => spec}
 //import org.saddle._
@@ -22,15 +22,19 @@ library saddle.vec;
 //import org.saddle.util.Concat.Promoter
 //import org.saddle.scalar._
 
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import '../vec.dart';
 import '../scalar/scalar_tag.dart';
 import '../scalar/scalar_tag_double.dart';
 import '../array/array.dart';
+import '../stats/vec_stats.dart';
 import 'vec_impl.dart';
 
-class VecDouble extends Vec<double> {
+class VecDouble extends Vec<double> with DoubleStats {
+  Vec<double> get r => this;
+
   //self =>
   Float64List values;
 
@@ -49,61 +53,75 @@ class VecDouble extends Vec<double> {
   Vec<double> take(List<int> locs) =>
       new Vec(array.take(toArray(), locs, scalarTag.missing), scalarTag);
 
-  Vec<double> without(List<int> locs) => array.remove(toArray(), locs);
+  Vec<double> without(List<int> locs) =>
+      new Vec(array.remove(toArray(), locs), scalarTag);
 
   Vec<double> dropNA() => filter((_) => true);
 
   bool get hasNA => VecImpl.findOneNA(this);
 
-  Vec<double> operator -() => map((x) => -x);
+  Vec<double> operator -() => map((x) => -x, scalarTag);
 
-  Vec<C> concat /*[B, C]*/ (
-          Vec<B> v) /*(implicit wd: Promoter[Double, B, C], mc: ST[C])*/ =>
-      Vec(util.Concat.append /*[Double, B, C]*/ (toArray(), v.toArray()));
+  Vec /*<C>*/ concat /*[B, C]*/ (
+          Vec /*<B>*/ v) /*(implicit wd: Promoter[Double, B, C], mc: ST[C])*/ =>
+      new Vec(util.Concat.append /*[Double, B, C]*/ (toArray(), v.toArray()));
 
-  B foldLeft /*[@spec(Boolean, Int, Long, Double) B: ST]*/ (
-          B init) /*(B f(B, Double))*/ =>
-      VecImpl.foldLeft(this)(init)(f);
+  /*B*/ dynamic foldLeft /*[@spec(Boolean, Int, Long, Double) B: ST]*/ (
+          init, dynamic f(arg1, double arg2)) /*(B f(B, Double))*/ =>
+      VecImpl.foldLeft(this, init, f);
 
-  B foldLeftWhile /*[@spec(Boolean, Int, Long, Double) B: ST]*/ (
-          B init) /*(b f(B, double))(bool cond(B, Double))*/ =>
-      VecImpl.foldLeftWhile(this)(init)(f)(cond);
+  /*B*/ dynamic foldLeftWhile /*[@spec(Boolean, Int, Long, Double) B: ST]*/ (
+          init,
+          dynamic f(arg1, double arg2),
+          bool cond(
+              arg1, double arg2)) /*(b f(B, double))(bool cond(B, Double))*/ =>
+      VecImpl.foldLeftWhile(this, init, f, cond);
 
-  B filterFoldLeft /*[@spec(Boolean, Int, Long, Double) B: ST]*/ (
-          bool pred(double arg)) /*(B init)(B f(B arg, double arg))*/ =>
-      VecImpl.filterFoldLeft(this)(pred)(init)(f);
+  /*B*/ dynamic filterFoldLeft /*[@spec(Boolean, Int, Long, Double) B: ST]*/ (
+          bool pred(double arg),
+          init,
+          dynamic f(arg1, double arg2)) /*(B init)(B f(B arg, double arg))*/ =>
+      VecImpl.filterFoldLeft(this, pred, init, f);
 
-  Vec<B> rolling /*[@spec(Boolean, Int, Long, Double) B: ST]*/ (
-          int winSz, B f(Vec<double> arg)) =>
-      VecImpl.rolling(this)(winSz, f);
+  Vec /*<B>*/ rolling /*[@spec(Boolean, Int, Long, Double) B: ST]*/ (
+          int winSz, dynamic f(Vec<double> arg), ScalarTag scb) =>
+      VecImpl.rolling(this, winSz, f, scb);
 
   Vec /*<B>*/ map /*[@spec(Boolean, Int, Long, Double) B: ST]*/ (
           dynamic f(double arg), ScalarTag scb) =>
       VecImpl.map /*[Double, B]*/ (this, f, scb);
 
-  Vec<B> flatMap /*[@spec(Boolean, Int, Long, Double) B : ST]*/ (
-          Vec<B> f(double arg)) =>
-      VecImpl.flatMap(this)(f);
+  Vec /*<B>*/ flatMap /*[@spec(Boolean, Int, Long, Double) B : ST]*/ (
+          Vec /*<B>*/ f(double arg), ScalarTag scb) =>
+      VecImpl.flatMap(this, f, scb);
 
-  Vec<B> scanLeft /*[@spec(Boolean, Int, Long, Double) B: ST]*/ (
-          B init) /*(b f(B arg, double arg2))*/ =>
-      VecImpl.scanLeft(this)(init)(f);
+  Vec /*<B>*/ scanLeft /*[@spec(Boolean, Int, Long, Double) B: ST]*/ (
+          init,
+          dynamic f(arg, double arg2),
+          ScalarTag scb) /*(b f(B arg, double arg2))*/ =>
+      VecImpl.scanLeft(this, init, f, scb);
 
-  Vec<B> filterScanLeft /*[@spec(Boolean, Int, Long, Double) B: ST]*/ (
-          bool pred(double arg)) /*(B init)(B f(B arg, double arg2))*/ =>
-      VecImpl.filterScanLeft(this)(pred)(init)(f);
+  Vec /*<B>*/ filterScanLeft /*[@spec(Boolean, Int, Long, Double) B: ST]*/ (
+          bool pred(double arg),
+          init,
+          dynamic f(arg, double arg2),
+          ScalarTag scb) /*(B init)(B f(B arg, double arg2))*/ =>
+      VecImpl.filterScanLeft(this, pred, init, f, scb);
 
-  Vec<C> zipMap /*[@spec(Int, Long, Double) B: ST, @spec(Boolean, Int, Long, Double) C: ST]*/ (
-          Vec<B> other) /*(C f(double arg, B arg2))*/ =>
-      VecImpl.zipMap(this, other)(f);
+  Vec /*<C>*/ zipMap /*[@spec(Int, Long, Double) B: ST, @spec(Boolean, Int, Long, Double) C: ST]*/ (
+          Vec /*<B>*/ other,
+          dynamic f(double arg, arg2),
+          ScalarTag scc) /*(C f(double arg, B arg2))*/ =>
+      VecImpl.zipMap(this, other, f, scc);
 
-  slice(int from, int until, [int stride = 1]) {
-    val b = math.max(from, 0);
-    val e = math.min(until, self.length);
+  Vec /*<T>*/ slice(int from, int until, [int stride = 1]) {
+    var b = math.max(from, 0);
+    var e = math.min(until, this.length);
 
     if (e <= b) {
-      Vec.empty;
+      return new Vec.empty(scalarTag);
     } else {
+      return new SplitVecDouble(b, e, stride, values);
 //      new VecDouble(values) {
 //      private val ub = math.min(self.length, e)
 //
@@ -120,13 +138,14 @@ class VecDouble extends Vec<double> {
     }
   }
 
-  // ex. shift(1)  : [1 2 3 4] => [NA 1 2 3]
-  //     shift(-1) : [1 2 3 4] => [2 3 4 NA]
-  shift(int n) {
-    val m = math.min(n, self.length);
-    val b = -m;
-    val e = self.length - m;
+  ///     shift(1)  : [1 2 3 4] => [NA 1 2 3]
+  ///     shift(-1) : [1 2 3 4] => [2 3 4 NA]
+  Vec<double> shift(int n) {
+    var m = math.min(n, this.length);
+    var b = -m;
+    var e = this.length - m;
 
+    return new ShiftVecDouble(m, b, e, values);
 //    new VecDouble(values) {
 //      override def length = self.length
 //
@@ -146,7 +165,7 @@ class VecDouble extends Vec<double> {
 
   /*private[saddle]*/
   @override
-  List<double> toDoubleArray(/*implicit*/ Numeric<double> na) => toArray();
+  List<double> toDoubleArray(/*implicit Numeric<double> na*/) => toArray();
 
   /*private[saddle]*/
   @override
@@ -155,10 +174,10 @@ class VecDouble extends Vec<double> {
     if (!needsCopy) {
       return values;
     } else {
-      val buf = new Array<double>(length);
+      var buf = new List<double>(length);
       var i = 0;
       while (i < length) {
-        buf[i] = apply(i);
+        buf[i] = this[i];
         i += 1;
       }
       return buf;
@@ -190,4 +209,53 @@ class VecDouble extends Vec<double> {
       return super == o;
     }
   }
+}
+
+class SplitVecDouble extends VecDouble {
+  int ub;
+  int b, e, stride;
+
+  SplitVecDouble(this.b, this.e, this.stride, values) : super(values) {
+    ub = math.min(super.length, e);
+  }
+
+  @override
+  int get length => ((ub - b) / stride).ceil();
+
+  @override
+  double operator [](int i) {
+    var loc = b + i * stride;
+    if (loc >= ub) {
+      throw new IndexError(
+          loc, this, "Cannot access location $loc >= length $ub");
+    }
+    return super[loc];
+  }
+
+  @override
+  bool get needsCopy => true;
+}
+
+class ShiftVecDouble extends VecDouble {
+  int m, b, e;
+
+  ShiftVecDouble(this.m, this.b, this.e, values) : super(values);
+  @override
+  get length => super.length;
+
+  @override
+  double operator [](int i) {
+    var loc = b + i;
+    if (loc >= e || loc < b) {
+      throw new IndexError(
+          loc, this, "Cannot access location $i (vec length ${super.length})");
+    } else if (loc >= super.length || loc < 0) {
+      return scalarTag.missing();
+    } else {
+      return super[loc];
+    }
+  }
+
+  @override
+  bool get needsCopy => true;
 }

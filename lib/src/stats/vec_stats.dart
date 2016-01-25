@@ -28,6 +28,7 @@ import '../array/array.dart';
 import '../vec.dart';
 import '../vec/vec_double.dart';
 import '../scalar/scalar_tag_double.dart';
+import '../scalar/scalar_tag_int.dart';
 
 /**
  * Trait which specifies how to break a rank tie
@@ -93,6 +94,8 @@ enum PctMethod {
  * Statistical methods made available on numeric Vec objects via enrichment.
  */
 abstract class VecStats /*[@spec(Int, Long, Double) A]*/ <A> {
+  Vec<A> get r;
+
   /**
    * Sum of the elements of the Vec, ignoring NA values
    */
@@ -201,12 +204,12 @@ abstract class VecStats /*[@spec(Int, Long, Double) A]*/ <A> {
     var c = count();
 
     if (c < 1) {
-      return sd.missing;
+      return sd.missing();
     } else if (c == 1) {
       return 0.0;
     } else {
       double m = mean();
-      return r.filterFoldLeft(sa.notMissing)(0.0)((x, y) {
+      return r.filterFoldLeft(sa.notMissing, 0.0, (x, y) {
         var tmp = subOp(y, m);
         x + tmp * tmp / (c - 1.0);
       });
@@ -222,12 +225,12 @@ abstract class VecStats /*[@spec(Int, Long, Double) A]*/ <A> {
       double v = variance();
       double m = mean();
       var coef = c / ((c - 1) * (c - 2) * v * math.sqrt(v));
-      return r.filterFoldLeft(sa.notMissing)(0.0)((x, y) {
+      return r.filterFoldLeft(sa.notMissing, 0.0, (x, y) {
         var tmp = subOp(y, m);
         x + coef * tmp * tmp * tmp;
       });
     } else {
-      return sd.missing;
+      return sd.missing();
     }
   }
 
@@ -239,7 +242,7 @@ abstract class VecStats /*[@spec(Int, Long, Double) A]*/ <A> {
     if (c > 3) {
       var vari = variance();
       double m = mean();
-      var acacc = r.filterFoldLeft(sa.notMissing)(0.0)((x, y) {
+      var acacc = r.filterFoldLeft(sa.notMissing, 0.0, (x, y) {
         var tmp = subOp(y, m);
         x + (tmp * tmp * tmp * tmp) / (vari * vari);
       });
@@ -346,21 +349,22 @@ abstract class VecStats /*[@spec(Int, Long, Double) A]*/ <A> {
       k += 1;
     }
 
-    List srt = ascending ? array.argsort(v) : array.reverse(array.argsort(v));
+    List srt =
+        ascending ? array.argsort(v, sd) : array.reverse(array.argsort(v, sd));
 
     List dat = array.take(v, srt, () => 0.0);
 
     var i = 0;
     var s = 0.0; // summation
     var d = 0; // duplicate counter
-    var res = array.empty /*[Double]*/ (len);
+    var res = array.empty /*[Double]*/ (len, sd);
     while (i < len) {
       var v = dat[i];
 
       s += (i + 1.0);
       d += 1;
       if (v == nan) {
-        res[srt[i]] = sd.missing;
+        res[srt[i]] = sd.missing();
       } else if (i == len - 1 || (dat[i + 1] - v).abs() > 1e-13) {
         if (tie == RankTie.Avg) {
           var j = i - d + 1;
@@ -408,7 +412,7 @@ abstract class VecStats /*[@spec(Int, Long, Double) A]*/ <A> {
     var sd = ScalarTagDouble;
     var vf = v.dropNA();
     if (vf.length == 0 || tile < 0 || tile > 100) {
-      sd.missing;
+      return sd.missing();
     } else {
       var c = vf.length;
       if (c == 1) {
@@ -438,43 +442,43 @@ abstract class VecStats /*[@spec(Int, Long, Double) A]*/ <A> {
   }
 }
 
-class DoubleStats extends VecStats<double> {
-  final Vec<double> r;
-  DoubleStats(this.r);
+abstract class DoubleStats extends Object with VecStats<double> {
+//  Vec<double> get r;
+//  DoubleStats(this.r);
 
   var sd = ScalarTagDouble;
 
-  double sum() => r.filterFoldLeft(sd.notMissing)(0.0)(_ + _);
+  double sum() => r.filterFoldLeft(sd.notMissing, 0.0, (a, b) => a + b);
 
-  int count() => r.filterFoldLeft(sd.notMissing)(0)((a, b) => a + 1);
+  int count() => r.filterFoldLeft(sd.notMissing, 0, (a, b) => a + 1);
 
   double min() {
-    if (r.count() == 0) {
+    if (count() == 0) {
       return null; //None
     } else {
-      var res = r.filterFoldLeft(sd.notMissing)(sd.inf)(
-          (double x, double y) => x < y ? x : y);
+      var res = r.filterFoldLeft(
+          sd.notMissing, sd.inf, (double x, double y) => x < y ? x : y);
       return res; //Some(res);
     }
   }
 
   double max() {
-    if (r.count() == 0) {
+    if (count() == 0) {
       return null; //None
     } else {
-      double res = r.filterFoldLeft(sd.notMissing)(sd.negInf)(
-          (double x, double y) => x > y ? x : y);
+      double res = r.filterFoldLeft(
+          sd.notMissing, sd.negInf, (double x, double y) => x > y ? x : y);
       return res; //Some(res)
     }
   }
 
-  double prod() => r.filterFoldLeft(sd.notMissing)(1.0)(_ * _);
+  double prod() => r.filterFoldLeft(sd.notMissing, 1.0, (a, b) => a * b);
 
   int countif(bool test(double arg)) =>
-      r.filterFoldLeft((t) => sd.notMissing(t) && test(t))(0)((a, b) => a + 1);
+      r.filterFoldLeft((t) => sd.notMissing(t) && test(t), 0, (a, b) => a + 1);
 
   double logsum() =>
-      r.filterFoldLeft(sd.notMissing)(0.0)((x, y) => x + math.log(y));
+      r.filterFoldLeft(sd.notMissing, 0.0, (x, y) => x + math.log(y));
 
   double mean() => sum() / count();
 
@@ -482,62 +486,62 @@ class DoubleStats extends VecStats<double> {
 
   double geomean() => math.exp(logsum() / count());
 
-  double variance() => _variance(r, _ - _);
+  double variance() => _variance(r, (a, b) => a - b);
 
-  double skew() => _skew(r, _ - _);
+  double skew() => _skew(r, (a, b) => a - b);
 
-  double kurt() => _kurt(r, _ - _);
+  double kurt() => _kurt(r, (a, b) => a - b);
 
   double percentile(double tile, [PctMethod method = PctMethod.NIST]) =>
       _percentile(r, tile, method);
 
-  Vec<double> demeaned() => _demeaned(r, _ - _);
+  Vec<double> demeaned() => _demeaned(r, (a, b) => a - b);
 
   Vec<double> rank([RankTie tie = RankTie.Avg, bool ascending = true]) =>
       _rank(r.contents, tie, ascending);
 
-  int argmin() => array.argmin(r.toArray);
+  int argmin() => array.argmin(r.toArray(), r.scalarTag);
 
-  int argmax() => array.argmax(r.toArray);
+  int argmax() => array.argmax(r.toArray(), r.scalarTag);
 }
 
-class IntStats extends VecStats<int> {
-  Vec<int> r;
-  IntStats(this.r);
+abstract class IntStats extends Object with VecStats<int> {
+//  Vec<int> get r;
+//  IntStats(this.r);
 
   var si = ScalarTagInt;
 
   int min() {
-    if (r.count() == 0) {
+    if (count() == 0) {
       return null; //None
     } else {
-      int res = r.filterFoldLeft(si.notMissing)(si.inf)(
-          (int x, int y) => x < y ? x : y);
+      int res = r.filterFoldLeft(
+          si.notMissing, si.inf, (int x, int y) => x < y ? x : y);
       return res; //Some(res)
     }
   }
 
   int max() {
-    if (r.count() == 0) {
+    if (count() == 0) {
       return null; //None
     } else {
-      int res = r.filterFoldLeft(si.notMissing)(si.negInf)(
-          (int x, int y) => x > y ? x : y);
+      int res = r.filterFoldLeft(
+          si.notMissing, si.negInf, (int x, int y) => x > y ? x : y);
       return res; //Some(res)
     }
   }
 
-  int sum() => r.filterFoldLeft(si.notMissing)(0)(_ + _);
+  int sum() => r.filterFoldLeft(si.notMissing, 0, (a, b) => a + b);
 
-  int count() => r.filterFoldLeft(si.notMissing)(0)((a, b) => a + 1);
+  int count() => r.filterFoldLeft(si.notMissing, 0, (a, b) => a + 1);
 
-  int prod() => r.filterFoldLeft(si.notMissing)(1)(_ * _);
+  int prod() => r.filterFoldLeft(si.notMissing, 1, (a, b) => a * b);
 
   int countif(bool test(int arg)) =>
-      r.filterFoldLeft((t) => si.notMissing(t) && test(t))(0)((a, b) => a + 1);
+      r.filterFoldLeft((t) => si.notMissing(t) && test(t), 0, (a, b) => a + 1);
 
-  double logsum() => r
-      .filterFoldLeft(si.notMissing)(0.0)((x, y) => x + math.log(y.toDouble()));
+  double logsum() => r.filterFoldLeft(
+      si.notMissing, 0.0, (x, y) => x + math.log(y.toDouble()));
 
   double mean() => sum().toDouble() / count();
 
@@ -552,16 +556,16 @@ class IntStats extends VecStats<int> {
   double kurt() => _kurt(r, (a, b) => a - b);
 
   double percentile(double tile, [PctMethod method = PctMethod.NIST]) =>
-      _percentile(r.toDoubleArray(), tile, method);
+      _percentile(new Vec(r.toDoubleArray(), ScalarTagDouble), tile, method);
 
   Vec<double> demeaned() => _demeaned(r, (a, b) => a - b);
 
   Vec<double> rank([RankTie tie = RankTie.Avg, bool ascending = true]) =>
       _rank(r.toDoubleArray(), tie, ascending);
 
-  int argmin() => array.argmin(r.toArray);
+  int argmin() => array.argmin(r.toArray(), si);
 
-  int argmax() => array.argmax(r.toArray);
+  int argmax() => array.argmax(r.toArray(), si);
 }
 /*
 class LongStats(r: Vec[Long]) extends VecStats[Long] {

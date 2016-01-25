@@ -14,7 +14,7 @@
  * limitations under the License.
  **/
 
-library saddle.scalar;
+library saddle.scalar.scalar_tag;
 
 //import scala.{ specialized => spec }
 //import org.saddle._

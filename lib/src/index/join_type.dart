@@ -14,7 +14,7 @@
  * limitations under the License.
  **/
 
-library saddle.index;
+library saddle.index.join_type;
 
 /**
  * There are four basic joins which may be performed between

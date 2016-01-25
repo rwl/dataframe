@@ -14,10 +14,11 @@
  * limitations under the License.
  **/
 
-library saddle;
+library saddle.vec;
 
 // import scala.{specialized => spec}
 
+import 'dart:math' as math;
 import 'dart:collection';
 
 import 'vec/vec.dart';
@@ -25,6 +26,7 @@ import 'index/index.dart';
 import 'ops/ops.dart';
 import 'scalar/scalar.dart';
 //import 'util/concat.dart' show Promoter;
+import 'util/util.dart' as util;
 
 import 'scalar/scalar_tag.dart';
 import 'stats/vec_stats.dart';
@@ -76,9 +78,10 @@ import 'array/array.dart';
  *
  * @tparam T Type of elements within the Vec
  */
-/*abstract*/ class Vec<
-        T> /*Boolean, Int, Long, Double*/ /*extends NumericOps<Vec<T>> with Serializable*/ //extends ListBase<T>
-    extends Object with VecStats<T> {
+abstract class Vec<
+    T> /*Boolean, Int, Long, Double*/ /*extends NumericOps<Vec<T>> with Serializable*/ //extends ListBase<T>
+//    extends Object with VecStats<T>
+{
 //  void set length(int newLength) { l.length = newLength; }
 //  int get length => l.length;
   T operator [](int index) => raw(index);
@@ -227,7 +230,7 @@ import 'array/array.dart';
    * @param m Mask vector of Vec[Boolean]
    */
   Vec<T> mask(Vec<bool> m) =>
-      VecImpl.mask(this, m, scalarTag.missing)(scalarTag);
+      VecImpl.mask(this, m, scalarTag.missing()); //(scalarTag);
 
   /**
    * Returns Vec whose locations are NA where the result of the
@@ -236,7 +239,7 @@ import 'array/array.dart';
    * @param f A function taking an element and returning a Boolean
    */
   Vec<T> maskFn(bool f(T elem)) =>
-      VecImpl.mask(this, f, scalarTag.missing)(scalarTag);
+      VecImpl.maskFn(this, f, scalarTag.missing()); //(scalarTag);
 
   /**
    * Concatenate two Vec instances together, where there exists some way to
@@ -250,8 +253,8 @@ import 'array/array.dart';
    * @tparam B type of other Vec elements
    * @tparam C type of resulting Vec elements
    */
-  Vec<C> concat /*[B, C]*/ (
-      Vec<B> v) /*(implicit wd: Promoter[T, B, C], mc: ST[C])*/;
+  Vec /*<C>*/ concat /*[B, C]*/ (
+      Vec /*<B>*/ v) /*(implicit wd: Promoter[T, B, C], mc: ST[C])*/;
 
   /**
    * Additive inverse of Vec with numeric elements
@@ -271,31 +274,39 @@ import 'array/array.dart';
   /**
    * Maps a function over elements of the Vec and flattens the result.
    */
-  Vec<B> flatMap /*<Boolean, Int, Long, Double) B : ST>*/ (Vec<B> f(T arg));
+  Vec /*<B>*/ flatMap /*<Boolean, Int, Long, Double) B : ST>*/ (
+      Vec /*<B>*/ f(T arg));
 
   /**
    * Left fold over the elements of the Vec, as in scala collections library
    */
-  B foldLeft /*<Boolean, Int, Long, Double) B: ST>*/ (B init) /*(f: (B, T)*/;
+  /*B*/ dynamic foldLeft /*<Boolean, Int, Long, Double) B: ST>*/ (
+      /*B*/ init,
+      f(arg1, arg2)) /*(f: (B, T)*/;
 
   /**
    * Left scan over the elements of the Vec, as in scala collections library
    */
 //  def scanLeft[@spec(Boolean, Int, Long, Double) B: ST](init: B)(f: (B, T) => B): Vec[B]
-  Vec<B> scanLeft /*[@spec(Boolean, Int, Long, Double) B: ST]*/ (
-      B init) /*(B f(B, T))*/;
+  Vec /*<B>*/ scanLeft /*[@spec(Boolean, Int, Long, Double) B: ST]*/ (
+      /*B*/ init,
+      dynamic f(arg1, arg2)) /*(B f(B, T))*/;
 
   /**
    * Filtered left fold over the elements of the Vec, as in scala collections library
    */
-  B filterFoldLeft /*[@spec(Boolean, Int, Long, Double) B: ST]*/ (
-      bool pred(T arg)) /*(B init)(B f(B arg, T arg))*/;
+  /*B*/ filterFoldLeft /*[@spec(Boolean, Int, Long, Double) B: ST]*/ (
+      bool pred(T arg),
+      init,
+      dynamic f(arg1, arg2)) /*(B init)(B f(B arg, T arg))*/;
 
   /**
    * Filtered left scan over elements of the Vec, as in scala collections library
    */
-  Vec<B> filterScanLeft /*[@spec(Boolean, Int, Long, Double) B: ST]*/ (
-      bool pred(T arg)) /*(B init)(B f(B arg, T arg))*/;
+  Vec /*<B>*/ filterScanLeft /*[@spec(Boolean, Int, Long, Double) B: ST]*/ (
+      bool pred(T arg),
+      init,
+      dynamic f(arg1, arg2)) /*(B init)(B f(B arg, T arg))*/;
 
   /**
    * Left fold that folds only while the test condition holds true. As soon as the condition function yields
@@ -303,8 +314,10 @@ import 'array/array.dart';
    *
    * @param cond Function whose signature is the same as the fold function, except that it evaluates to Boolean
    */
-  B foldLeftWhile /*[@spec(Boolean, Int, Long, Double) B: ST]*/ (
-      B init) /*(B f(B arg, T arg))(bool cond(B arg, T arg2))*/;
+  /*B*/ dynamic foldLeftWhile /*[@spec(Boolean, Int, Long, Double) B: ST]*/ (
+      /*B*/ init,
+      dynamic f(arg1, arg2),
+      bool cond(arg1, arg2)) /*(B f(B arg, T arg))(bool cond(B arg, T arg2))*/;
 
   /**
    * Zips Vec with another Vec and applies a function to the paired elements. If either of the pair is NA, the
@@ -315,9 +328,9 @@ import 'array/array.dart';
    * @tparam B Parameter of other Vec
    * @tparam C Result of function
    */
-  Vec<C> zipMap /*[@spec(Int, Long, Double) B: ST,
+  Vec /*<C>*/ zipMap /*[@spec(Int, Long, Double) B: ST,
              @spec(Boolean, Int, Long, Double) C: ST]*/
-  (Vec<B> other); //(C f(T, B));
+  (Vec /*<B>*/ other, /*C*/ f(arg1, arg2)); //(C f(T, B));
 
   /**
    * Drop the elements of the Vec which are NA
@@ -333,7 +346,7 @@ import 'array/array.dart';
    * Execute a (side-effecting) operation on each (non-NA) element in the vec
    * @param op operation to execute
    */
-  void foreach(Unit op(T arg)) {
+  void foreach(op(T arg)) {
     return VecImpl.foreach(this, op); //(scalarTag);
   }
 
@@ -392,8 +405,8 @@ import 'array/array.dart';
    * @param f Function Vec[A] => B to operate on sliding window
    * @tparam B Result type of function
    */
-  Vec<B> rolling /*[@spec(Boolean, Int, Long, Double) B: ST]*/ (
-      int winSz, B f(Vec<T> arg));
+  Vec /*<B>*/ rolling /*[@spec(Boolean, Int, Long, Double) B: ST]*/ (
+      int winSz, dynamic f(Vec<T> arg));
 
   /**
    * Yield a Vec whose elements have been sorted (in ascending order)
@@ -435,7 +448,7 @@ import 'array/array.dart';
    * Split Vec into two Vecs at position i
    * @param i Position at which to split Vec
    */
-  /*(Vec[T], Vec[T])*/ splitAt(int i) => [slice(0, i), slice(i, length)];
+  SplitAt<T> splitAt(int i) => new SplitAt._(slice(0, i), slice(i, length));
 
   /**
    * Creates a view into original Vec, but shifted so that n
@@ -456,7 +469,7 @@ import 'array/array.dart';
    * }}}
    *
    */
-  Vec<T> pad() => VecImpl.pad(this)(scalarTag);
+  Vec<T> pad() => VecImpl.pad(this); //(scalarTag);
 
   /**
    * Replaces all NA values for which there is a non-NA value at a lower offset
@@ -470,7 +483,7 @@ import 'array/array.dart';
    * }}}
    *
    */
-  Vec<T> padAtMost(int n) => VecImpl.pad(this, n)(scalarTag);
+  Vec<T> padAtMost(int n) => VecImpl.pad(this, n); //(scalarTag);
 
   /**
    * Fills NA values in vector with result of a function which acts on the index of
@@ -484,7 +497,7 @@ import 'array/array.dart';
    * Converts Vec to an indexed sequence (default implementation is immutable.Vector)
    *
    */
-  IndexedSeq<T> toSeq() => toArray.toIndexedSeq;
+//  IndexedSeq<T> toSeq() => toArray.toIndexedSeq;
 
   /**
    * Returns a Vec whose backing array has been copied
@@ -493,21 +506,23 @@ import 'array/array.dart';
 
   /*private[saddle]*/ List<T> toArray();
 
-  /*private[saddle]*/ List<double> toDoubleArray(/*implicit*/ NUM<T> na) {
-    val arr = toArray;
-    val buf = new Array<double>(arr.length);
+  /*private[saddle]*/ List<double> toDoubleArray(/*implicit NUM<T> na*/) {
+    var arr = toArray();
+    var buf = new List<double>(arr.length);
     var i = 0;
     while (i < arr.length) {
-      buf[i] = scalarTag.toDouble(arr(i));
+      buf[i] = scalarTag.toDouble(arr[i]);
       i += 1;
     }
-    buf;
+    return buf;
   }
 
   /** Default hashcode is simple rolling prime multiplication of sums of hashcodes for all values. */
   @override
-  int get hashCode => toArray().fold(
-      1, (a, b) => a * 31 + b.hashCode); //foldLeft(1)(_ * 31 + _.hashCode());
+  int get hashCode {
+//    return toArray().fold(1, (a, b) => a * 31 + b.hashCode);
+    return foldLeft(1, (a, b) => a * 31 + b.hashCode);
+  }
 
   /**
    * Default equality does an iterative, element-wise equality check of all values.
@@ -544,23 +559,25 @@ import 'array/array.dart';
    * @param len Max number of elements to include
    */
   String stringify([int len = 10]) {
-    var half = len / 2;
+//    var half = len ~/ 2;
 
     var buf = new StringBuffer();
 
-    /*implicit*/ var st = scalarTag;
+//    /*implicit*/ var st = scalarTag;
 
-    var maxf = (int a, String b) => math.max(a, b.length);
+//    var maxf = (int a, String b) => math.max(a, b.length);
 
     if (length == 0) {
       buf.write("Empty Vec");
     } else {
       buf.write("[$length x 1]\n");
-      buf.write(toArray().toString());
-//      val vlen = { head(half) concat tail(half) }.map(scalarTag.show(_)).foldLeft(0)(maxf);
-//
-//      def createRow(r: Int): String = ("%" + { if (vlen > 0) vlen else 1 } + "s\n").format(scalarTag.show(apply(r)))
-//      buf append util.buildStr(len, length, createRow, " ... \n" )
+//      var vlen = (head(half).concat(tail(half)))
+//          .map(scalarTag.show, st)
+//          .foldLeft(0, maxf);
+
+//      String createRow(int r) => ("%" + { (vlen > 0) ? vlen : 1 } + "s\n").format(scalarTag.show(apply(r)))
+      String createRow(int r) => "${scalarTag.show(this[r])}\n";
+      buf.write(util.buildStr(len, length, createRow, () => " ... \n"));
     }
 
     return buf.toString();
@@ -570,9 +587,9 @@ import 'array/array.dart';
    * Pretty-printer for Vec, which simply outputs the result of stringify.
    * @param len Number of elements to display
    */
-  void print([int len = 10, OutputStream stream /*= System.out*/]) {
-    stream.write(stringify(len).getBytes);
-  }
+//  void print([int len = 10, OutputStream stream /*= System.out*/]) {
+//    stream.write(stringify(len).getBytes);
+//  }
 
   @override
   toString() => stringify();
@@ -623,14 +640,14 @@ import 'array/array.dart';
    * @param s Vec
    * @tparam T Type parameter of Vec
    */
-  /*implicit*/ vecToArray /*[T]*/ (Vec<T> s) => s.toArray;
+//  /*implicit*/ vecToArray /*[T]*/ (Vec<T> s) => s.toArray;
 
   /**
    * An array may be implicitly converted to a Vec.
    * @param arr Array
    * @tparam T Type parameter of Array
    */
-  /*implicit*/ arrayToVec /*[T: ST]*/ (Array<T> arr) => Vec(arr);
+//  /*implicit*/ arrayToVec /*[T: ST]*/ (List<T> arr) => new Vec(arr);
 
   /**
    * A Vec may be implicitly ''widened'' to a Vec.
@@ -638,10 +655,15 @@ import 'array/array.dart';
    * @param s Vec to widen to Series
    * @tparam A Type of elements in Vec
    */
-  /*implicit*/ vecToSeries /*[A: ST]*/ (Vec<A> s) => Series(s);
+//  /*implicit*/ vecToSeries /*[A: ST]*/ (Vec<A> s) => Series(s);
 
   /**
    * A Vec may be implicitly converted to a single column Mat
    */
-  /*implicit*/ Mat<A> vecToMat /*[A: ST]*/ (Vec<A> s) => Mat(s);
+//  /*implicit*/ Mat /*<A>*/ vecToMat /*[A: ST]*/ (Vec /*<A>*/ s) => new Mat(s);
+}
+
+class SplitAt<T> {
+  final Vec<T> v1, v2;
+  SplitAt._(this.v1, this.v2);
 }

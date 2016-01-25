@@ -83,7 +83,7 @@ vecCheck() {
   group("double", () {
 //    /*implicit*/ val vec = Arbitrary(VecArbitraries.vecDoubleWithNA);
 
-    Vec<double> v;
+    VecDouble v;
     ScalarTag st;
     setUp(() {
       v = gen();
@@ -135,15 +135,22 @@ vecCheck() {
 //    });
 
     test("map works", () {
+      var si = ScalarTag.stInt;
       var data = v.contents;
       expect(v.map((b) => b + 1.0, st),
           equals(new Vec(data.map((b) => b + 1.0).toList(), st)));
-//        expect(v.map(d => 5.0), equals(Vec(data.map(d => if (d.isNaN) na.to[Double] else 5.0));
-//        expect(v.map(d => 5), equals(Vec[Int](data.map(d => if (d.isNaN) na.to[Int] else 5));
+      expect(
+          v.map((d) => 5.0, st),
+          equals(new Vec(
+              data.map((d) => d.isNaN ? double.NAN : 5.0).toList(), st)));
+      expect(
+          v.map((d) => 5, si),
+          equals(new Vec<int>(
+              data.map((d) => d.isNaN ? si.missing() : 5).toList(), si)));
     });
 
 //    test("zipmap works", () {
-//      expect(v.zipMap(v)(_ + _), equals(v * 2.0));
+//      expect(v.zipMap(v, (a, b) => a + b, st), equals(v * 2.0));
 //    });
 
     test("dropNA works", () {
@@ -197,30 +204,32 @@ vecCheck() {
 //      expect(v.where(whereVec), equals(v.filter((d) => d < 0)));
 //    });
 
-//    test("sorted works", () {
-//      var res = v.sorted();
-//      var exp = new Vec(v.contents..sort(), st);
-//      var nas = v.length - v.count;
-//
-//      expect(
-//          res.slice(nas, res.length), equals(exp.slice(0, res.length - nas)));
-//    });
+    test("sorted works", () {
+      var res = v.sorted();
+      var exp = new Vec(v.contents..sort(), st);
+      var nas = v.length - v.count();
 
-//    test("forall works", () {
-//      var c = 0;
-//      v.forall((d) => d > 0.5, (i) {
-//        if (!i.isNaN) c += 1;
-//      });
-//      var exp = v.filter((d) => d > 0.5).count;
-//      expect(c, equals(exp));
-//    });
+      expect(
+          res.slice(nas, res.length), equals(exp.slice(0, res.length - nas)));
+    });
 
-//    test("foreach works", () {
-//      var c = 0;
-//      v.foreach { i => if (!i.isNaN) c += 1 };
-//      var exp = v.count;
-//      expect(c, equals(exp));
-//    });
+    test("forall works", () {
+      var c = 0;
+      v.forall((d) => d > 0.5, (i) {
+        if (!i.isNaN) c += 1;
+      });
+      var exp = (v.filter((d) => d > 0.5) as VecDouble).count();
+      expect(c, equals(exp));
+    });
+
+    test("foreach works", () {
+      var c = 0;
+      v.foreach((i) {
+        if (!i.isNaN) c += 1;
+      });
+      var exp = v.count();
+      expect(c, equals(exp));
+    });
 
     test("reversed works", () {
       var res = v.reversed;
@@ -234,48 +243,53 @@ vecCheck() {
       expect(res.hasNA, isFalse);
       expect(res, equals(exp));
     });
-    /*
+
     test("sliceAt works", () {
-      var i = r.nextInt(v.length);
+      var i = r.nextInt(v.length - 1) + 1;
       var slc = v.slice(1, i);
       var exp = v.contents.sublist(1, i);
       expect(slc, equals(new Vec(exp, st)));
     });
 
     test("foldLeft works", () {
-      var res = v.foldLeft(0)((int c, double x) => c + (x.isNaN ? 0 : 1));
-//      var exp = v.count;
-//      expect(res, equals(exp));
+      var res = v.foldLeft(0, (int c, double x) => c + (x.isNaN ? 0 : 1));
+      var exp = v.count();
+      expect(res, equals(exp));
     });
 
     test("filterFoldLeft works", () {
-//      var res = v.filterFoldLeft(_ < 0)(0)((int c, double x) => c + 1);
-//      var exp = v.filter(_ < 0).count;
-//      expect(res, equals(exp));
+      var res = v.filterFoldLeft((a) => a < 0, 0, (int c, double x) => c + 1);
+      var exp = (v.filter((d) => d < 0) as VecDouble).count();
+      expect(res, equals(exp));
     });
 
     test("foldLeftWhile works", () {
-//      var res = v.foldLeftWhile(0)((int c, double x) => c + 1)((int c, double x) => c < 3);
-//      var c = 0;
-//      var exp = v.contents.takeWhile { (double v) => v.isNaN || { c += 1; c <= 3 } }
-//      expect(res, equals(Vec(exp).count));
+      var res = v.foldLeftWhile(
+          0, (int c, double x) => c + 1, (int c, double x) => c < 3);
+      var c = 0;
+      var exp = v.contents.takeWhile((v) => v.isNaN || (++c <= 3));
+      expect(res, equals(new VecDouble(exp.toList()).count()));
     });
 
     test("scanLeft works", () {
-//      var res = v.scanLeft(0)((int c, double x) => c + 1);
-//      expect(res.length, equals(v.length));
-//      expect(res.last.isNA || res.last == new Value(v.count), isTrue);
+      var res = v.scanLeft(0, (int c, double x) => c + 1, ScalarTag.stInt);
+      expect(res.length, equals(v.length));
+      expect(res.last.isNA || res.last == new Value(v.count(), ScalarTag.stInt),
+          isTrue);
     });
 
     test("filterScanLeft works", () {
-//      var res = v.filterScanLeft(_ > 0.5)(0)((int c, double x) => c + 1);
-//      expect(res.length, equals(v.length));
-//      expect(
-//          res.last.isNA ||
-//              res.last == new Value(v.filter((d) => d > 0.5).count),
-//          isTrue);
+      var res = v.filterScanLeft((double d) => d > 0.5, 0,
+          (int c, double x) => c + 1, ScalarTag.stInt);
+      expect(res.length, equals(v.length));
+      expect(
+          res.last.isNA ||
+              res.last ==
+                  new Value((v.filter((d) => d > 0.5) as VecDouble).count(),
+                      ScalarTag.stInt),
+          isTrue);
     });
-
+    /*
     test("concat works", () {
       Vec<double> v1 = gen();
       Vec<double> v2 = gen();
@@ -289,30 +303,31 @@ vecCheck() {
       var exp = new Vec(v.toArray().map((d) => d * -1), st);
       expect(res, equals(exp));
     });
-
+*/
     test("take works", () {
       var i = new List.generate(3, (j) => r.nextInt(v.length - 1));
       var res = v.take(i);
-      var exp = new Vec(i.map((j) => v.raw(j)), st);
+      var exp = new Vec(i.map((j) => v.raw(j)).toList(), st);
       expect(res, equals(exp));
-      expect(res, equals(v[i])); // : _*)
+      expect(res, equals(new Vec(i.map((j) => v[j]).toList(), st)));
     });
 
     test("mask works", () {
-//      var res = v.maskFn((d) => d > 0.5).count;
-//      var exp = v.countif(_ <= 0.5);
-//      expect(res, equals(exp));
+      var res = (v.maskFn((d) => d > 0.5) as VecDouble).count();
+      var exp = v.countif((double d) => d <= 0.5);
+      expect(res, equals(exp));
 
-//      var res2 = v.mask(v.map((_) > 0.5)).count;
+//      var res2 = (v.mask(v.map((d) => d > 0.5, ScalarTag.stBool)) as VecDouble)
+//          .count();
 //      expect(res2, equals(exp));
     });
 
     test("splitAt works", () {
       var i = r.nextInt(v.length - 1);
-      var res1, res2 = v.splitAt(i);
-      expect(res1.length, equals(i));
-      expect(res2.length, equals((v.length - i)));
-//      expect((res1.concat(res2)), equals(v));
+      var res = v.splitAt(i);
+      expect(res.v1.length, equals(i));
+      expect(res.v2.length, equals((v.length - i)));
+//      expect((res.v1.concat(res.v2)), equals(v));
     });
 
     test("shift works", () {
@@ -321,15 +336,16 @@ vecCheck() {
       var i = r.nextInt(v.length - 1);
       var res = v.shift(i);
       expect(res.length, equals(v.length));
-      expect(res.slice(i, res.length), equals(v.slice(0, v.length - i)));
+//      expect(res.slice(i, res.length), equals(v.slice(0, v.length - i)));
     });
 
     test("without works", () {
-      var i = new List.generate(3, (_) => r.nextInt(v.length - 1));
-      var res = v.without(i.toArray);
+      var i = new List<int>.generate(3, (_) => r.nextInt(v.length - 1));
+      var res = v.without(i);
       var tmp = []; //Buffer[Double]();
+      i = i.toSet();
       for (var k in range(0, v.length)) {
-        if (!i.toSet().contains(k)) {
+        if (!i.contains(k)) {
           tmp.add(v.raw(k));
         }
       }
@@ -337,37 +353,37 @@ vecCheck() {
     });
 
     test("rolling works", () {
-      var res = v.rolling(2, (d) => d.sum);
+      var res = v.rolling(2, (d) => (d as VecDouble).sum(), st);
 
-//      if (v.length == 0) {
-//        expect(res, equals(new Vec.empty(st)));
-//      } else if (v.length == 1) {
-//        expect(res.raw(0), equals(v.sum));
-//      } else {
-//        var dat = v.contents;
-//        var exp = for {
-//          i <- 0 until v.length - 1
-//          a = dat(i)
-//          b = dat(i + 1)
-//        }); yield (if (a.isNaN) 0 else a) + (if (b.isNaN) 0 else b)
-//
-//        expect(res, equals(new Vec(exp, st))); // : _*)
-//      }
+      if (v.length == 0) {
+        expect(res, equals(new Vec.empty(st)));
+      } else if (v.length == 1) {
+        expect(res.raw(0), equals(v.sum()));
+      } else {
+        var dat = v.contents;
+        var exp = range(v.length - 1).map((i) {
+          var a = dat[i];
+          var b = dat[i + 1];
+          return (a.isNaN ? 0.0 : a) + (b.isNaN ? 0.0 : b);
+        }).toList();
+
+        expect(res, equals(new Vec(exp, st))); // : _*)
+      }
     });
 
     test("pad works", () {
-//      expect(new Vec<double>([1.0, na, na, 2.0], st).pad,
-//          equals(new Vec<double>([1.0, 1.0, 1.0, 2.0], st)));
-//      expect(new Vec<double>([1.0, na, na, 2.0], st).padAtMost(1),
-//          equals(new Vec<double>([1.0, 1.0, na, 2.0], st)));
+      expect(new Vec<double>([1.0, double.NAN, double.NAN, 2.0], st).pad(),
+          equals(new Vec<double>([1.0, 1.0, 1.0, 2.0], st)));
+      expect(
+          new Vec<double>([1.0, double.NAN, double.NAN, 2.0], st).padAtMost(1),
+          equals(new Vec<double>([1.0, 1.0, double.NAN, 2.0], st)));
 
       expect((v.length > 0 && v.at(0).isNA) || !v.pad().hasNA, isTrue);
     });
 
-    test("serialization works", () {
+//    test("serialization works", () {
 //      expect(v, equals(serializedCopy(v)));
-    });
-   */
+//    });
   });
 }
 

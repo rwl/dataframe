@@ -14,7 +14,7 @@
  * limitations under the License.
  **/
 
-library saddle.vec;
+library saddle.vec.impl;
 
 //import scala.{ specialized => spec }
 //import org.saddle._
@@ -40,7 +40,7 @@ import '../scalar/scalar_tag.dart';
     return new Vec(buf, v1.scalarTag);
   }
 
-  static Vec /*<A>*/ mask2 /*[@spec(Boolean, Int, Long, Double) A: ST]*/ (
+  static Vec /*<A>*/ maskFn /*[@spec(Boolean, Int, Long, Double) A: ST]*/ (
       Vec /*<A>*/ v1, bool f(arg), value) {
     var sa = v1.scalarTag; //implicitly[ST[A]];
     var buf = new List(v1.length);
@@ -381,7 +381,7 @@ import '../scalar/scalar_tag.dart';
           buf[i] = v;
           c = lim;
         } else {
-          buf[i] = (c > 0) ? buf(i - 1) : v;
+          buf[i] = (c > 0) ? buf[i - 1] : v;
           c -= 1;
         }
         i += 1;

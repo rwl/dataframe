@@ -58,12 +58,12 @@ class _ScalarTagDouble extends ScalarTag<double> {
   @override
   bool get isDouble => true;
 
-  double zero(/*implicit*/ Numeric<double> ev) => 0.0;
-  double one(/*implicit*/ Numeric<double> ev) => 1.0;
-  double inf(/*implicit*/ Numeric<double> ev) => double.INFINITY;
-  double negInf(/*implicit*/ Numeric<double> ev) => double.NEGATIVE_INFINITY;
+  double zero(/*implicit Numeric<double> ev*/) => 0.0;
+  double one(/*implicit Numeric<double> ev*/) => 1.0;
+  double inf(/*implicit Numeric<double> ev*/) => double.INFINITY;
+  double negInf(/*implicit Numeric<double> ev*/) => double.NEGATIVE_INFINITY;
 
-  show(double v) => (isMissing(v)) ? "%s".format("NA") : "%.4f".format(v);
+  show(double v) => (isMissing(v)) ? "NA" : "$v";
 
 //  @override
 //  get runtimeClass => classOf<double>;

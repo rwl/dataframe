@@ -27,8 +27,11 @@ import 'vec_impl.dart';
 import '../scalar/scalar_tag.dart';
 import '../scalar/scalar_tag_int.dart';
 import '../array/array.dart';
+import '../stats/vec_stats.dart';
 
-class VecInt extends Vec<int> {
+class VecInt extends Vec<int> with IntStats {
+  Vec<int> get r => this;
+
   //self =>
   List<int> values;
 
@@ -38,7 +41,7 @@ class VecInt extends Vec<int> {
 
   ScalarTag scalarTag = ScalarTagInt;
 
-  int apply(int i) => values[i];
+  int apply_(int i) => values[i];
   int raw(int i) => values[i];
 
   Vec<int> copy() => new Vec(new List.from(toArray()) /*.clone()*/, scalarTag);

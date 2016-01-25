@@ -14,13 +14,14 @@
  * limitations under the License.
  **/
 
-library saddle;
+library saddle.index;
 
 import 'package:quiver/iterables.dart' show range;
 
 //import scala.{specialized => spec, Array}
 //import 'index/index.dart';
 import 'index/reindexer.dart';
+import 'index/join_type.dart';
 import 'scalar/scalar.dart';
 import 'locator/locator.dart' show Locator;
 //import 'util/concat.dart' show Promoter;
@@ -430,7 +431,7 @@ class Index<T> /*[@spec(Boolean, Int, Long, Double) T] extends Serializable*/ {
    * @param other Another index
    * @param how join type, see [[org.saddle.index.JoinType]]
    */
-  ReIndexer<T> join(Index<T> other, [JoinType how = LeftJoin]);
+  ReIndexer<T> join(Index<T> other, [JoinType how = JoinType.LeftJoin]);
 
   /**
    * Given a key, return the previous value in the Index (in the natural, ie supplied,
