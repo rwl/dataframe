@@ -154,27 +154,29 @@ abstract class SpecializedFactory<
   /**
    * An alternative Mat factory method using array of Vecs
    */
-//  /*final*/ Mat<T> makeMat(List<Vec<T>> arr) /*(implicit st: ST<T>)*/ {
-//    val c = arr.length;
-//    if (c == 0) {
-//      st.makeMat(0, 0, st.newArray(0));
-//    } else {
-//      val r = arr(0).length;
-//      if (r == 0) {
-//        st.makeMat(0, 0, st.newArray(0));
-//      } else {
-//        require(arr.foldLeft(true)(_ && _.length == r),
-//            "All vec inputs must have the same length");
-//        altMatConstructor(r, c, arr);
-//      }
-//    }
-//  }
+  /*final*/ Mat<T> makeMatFromVecs(
+      List<Vec<T>> arr, ScalarTag st) /*(implicit st: ST<T>)*/ {
+    var c = arr.length;
+    if (c == 0) {
+      return st.makeMat(0, 0, []);
+    } else {
+      var r = arr[0].length;
+      if (r == 0) {
+        return st.makeMat(0, 0, []);
+      } else {
+        if (arr.fold(true, (a, b) => a && b.length == r)) {
+          throw new ArgumentError("All vec inputs must have the same length");
+        }
+        return altMatConstructor(r, c, arr, st);
+      }
+    }
+  }
 
   /**
    * Can override this default construction methodology to avoid the toArray call if you
    * don't want to extract elements that way.
    */
-  /*protected*/ Mat<T> altMatConstructor(
-          int r, int c, List<Vec<T>> arr) /*(implicit st: ST<T>)*/ =>
-      makeMat(c, r, st.concat(arr).toArray).T;
+  /*protected*/ Mat<T> altMatConstructor(int r, int c, List<Vec<T>> arr,
+          ScalarTag<T> st) /*(implicit st: ST<T>)*/ =>
+      makeMat(c, r, st.concat(arr).toArray()).T;
 }

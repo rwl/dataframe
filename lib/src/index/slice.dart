@@ -18,12 +18,14 @@ library saddle.index;
 
 //import org.saddle.Index
 
+import '../index.dart';
+
 /**
  * Slice provides a methodology so that when it is applied to an index,
  * it produces an upper and lower integer offset at which to slice.
  */
 abstract class Slice<T> /*[+T]*/ {
-  /*(int, int)*/ apply /*[U >: T]*/ (Index /*[U]*/ idx);
+  /*(int, int)*/ List<int> call /*[U >: T]*/ (Index /*[U]*/ idx);
 }
 
 // implementations
@@ -71,18 +73,18 @@ class SliceAll extends Slice /*[Nothing]*/ {
 
 // companion objects
 
-class Slice {
-  apply(T k1, T k2) => new SliceDefault(k1, k2);
-}
-
-class SliceFrom {
-  apply(T k) => new SliceFrom(k);
-}
-
-class SliceTo {
-  apply(T k) => new SliceTo(k);
-}
-
-class SliceAll {
-  apply(T k) => new SliceAll();
-}
+//class Slice {
+//  apply(T k1, T k2) => new SliceDefault(k1, k2);
+//}
+//
+//class SliceFrom {
+//  apply(T k) => new SliceFrom(k);
+//}
+//
+//class SliceTo {
+//  apply(T k) => new SliceTo(k);
+//}
+//
+//class SliceAll {
+//  apply(T k) => new SliceAll();
+//}

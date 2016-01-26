@@ -16,13 +16,19 @@
 
 library saddle;
 
+import 'dart:math' as math;
+import 'package:quiver/iterables.dart' show range;
+
 //import 'mat/mat.dart';
-import 'scalar/scalar.dart' show Scalar, ScalarTag;
-import 'ops/ops.dart' show BinOpMat, NumericOps;
+import 'scalar/scalar.dart' show Scalar;
+import 'scalar/scalar_tag.dart' show ScalarTag;
+//import 'ops/ops.dart' show BinOpMat, NumericOps;
 //import scala.{specialized => spec}
 //import java.io.OutputStream
-import 'index.dart' show IndexIntRange, Slice;
+//import 'index.dart' show IndexIntRange, Slice;
+import 'index/slice.dart' show Slice;
 import 'vec.dart';
+import 'util/util.dart' as util;
 
 /**
  * `Mat` is an immutable container for 2D homogeneous data (a "matrix"). It is
@@ -62,7 +68,7 @@ import 'vec.dart';
  *
  * @tparam A Type of elements within the Mat
  */
-class Mat<
+abstract class Mat<
     A> /*[@spec(Boolean, Int, Long, Double)*/ /*extends NumericOps<Mat<A>>
     with Serializable*/
 {
@@ -137,7 +143,7 @@ class Mat<
    * @param c Array of col offsets
    */
   Mat<A> atTake(List<int> r, List<int> c) /*(implicit st: ScalarTag[A])*/ {
-    row(r).col(c);
+    return rowTake(r).colTake(c);
   }
 
   /**
@@ -146,7 +152,7 @@ class Mat<
    * @param c Integer col offset
    */
   Vec<A> atCol(List<int> r, int c) /*(implicit st: ScalarTag[A])*/ {
-    row(r).col(c);
+    return rowTake(r).col(c);
   }
 
   /**
@@ -155,7 +161,7 @@ class Mat<
    * @param c Array of col offsets
    */
   Vec<A> atRow(int r, List<int> c) /*(implicit st: ScalarTag[A])*/ {
-    col(c).row(r);
+    return colTake(c).row(r);
   }
 
   /**
@@ -164,7 +170,7 @@ class Mat<
    * @param c Slice to apply to cols
    */
   Mat<A> atSlice(Slice<int> r, Slice<int> c) /*(implicit st: ScalarTag[A])*/ =>
-      row(r).col(c);
+      rowSlice(r).colSlice(c);
 
   /**
    * Returns (a copy of) the contents of matrix as a single array in
@@ -179,27 +185,27 @@ class Mat<
   /**
    * Maps a function over each element in the matrix
    */
-//  def map[@spec(Boolean, Int, Long, Double) B: ST](f: A => B): Mat[B]
+  Mat map /*[@spec(Boolean, Int, Long, Double) B: ST]*/ (dynamic f(arg));
 
   /**
    * Changes the shape of matrix without changing the underlying data
    */
-//  def reshape(r: Int, c: Int): Mat[A]
+  Mat<A> reshape(int r, int c);
 
   /**
    * Transpose of original matrix
    */
-//  def transpose: Mat[A]
+  Mat<A> transpose();
 
   /**
    * Transpose of original matrix
    */
-  Mat<A> get T => transpose;
+  Mat<A> get T => transpose();
 
   /**
    * Create Mat comprised of same values in specified rows
    */
-//  def takeRows(locs: Array[Int]): Mat[A]
+  Mat<A> takeRows(List<int> locs);
 
   /**
    * Create Mat comprised of same values in specified rows
@@ -209,7 +215,7 @@ class Mat<
   /**
    * Create Mat comprised of same values in specified columns
    */
-//  def takeCols(locs: Array[Int]): Mat[A] = T.takeRows(locs).T
+  Mat<A> takeCols(List<int> locs) => T.takeRows(locs).T;
 
   /**
    * Create Mat comprised of same values in specified columns
@@ -221,7 +227,7 @@ class Mat<
    *
    * @param locs Row locations to exclude
    */
-//  def withoutRows(locs: Array[Int]): Mat[A]
+  Mat<A> withoutRows(List<int> locs);
 
   /**
    * Create Mat comprised of same values without the specified rows
@@ -235,7 +241,7 @@ class Mat<
    *
    * @param locs Col locations to exclude
    */
-//  def withoutCols(locs: Array[Int]): Mat[A] = T.withoutRows(locs).T
+  Mat<A> withoutCols(List<int> locs) => T.withoutRows(locs).T;
 
   /**
    * Create Mat comprised of same values without the specified columns
@@ -247,32 +253,32 @@ class Mat<
   /**
    * Yields row indices where row has some NA value
    */
-  Set<int> rowsWithNA(/*implicit*/ ST<A> ev) {
-    val builder = Set.newBuilder[Int];
+  Set<int> rowsWithNA(/*implicit ST<A> ev*/) {
+    var builder = new Set<int>(); //.newBuilder[Int];
     var i = 0;
     while (i < numRows) {
-      if (row(i).hasNA) builder += i;
+      if (row(i).hasNA) builder.add(i);
       i += 1;
     }
-    builder.result();
+    return builder;
   }
 
   /**
    * Yields column indices where column has some NA value
    */
-  Set<int> colsWithNA(/*implicit*/ ST<A> ev) => T.rowsWithNA;
+  Set<int> colsWithNA(/*implicit ST<A> ev*/) => T.rowsWithNA();
 
   /**
    * Yields a matrix without those rows that have NA
    */
-  Mat<A> dropRowsWithNA(/*implicit*/ ST<A> ev) =>
-      withoutRows(rowsWithNA.toArray);
+  Mat<A> dropRowsWithNA(/*implicit ST<A> ev*/) =>
+      withoutRows(rowsWithNA().toList());
 
   /**
    * Yields a matrix without those cols that have NA
    */
-  Mat<A> dropColsWithNA(/*implicit*/ ST<A> ev) =>
-      withoutCols(colsWithNA.toArray);
+  Mat<A> dropColsWithNA(/*implicit ST<A> ev*/) =>
+      withoutCols(colsWithNA().toList());
 
   /**
    * Returns a specific column of the Mat as a Vec
@@ -281,7 +287,7 @@ class Mat<
    */
   Vec<A> col(int c) /*(implicit ev: ST<A>)*/ {
 //    assert(c >= 0 && c < numCols, "Array index %d out of bounds" format c);
-    flattenT.slice(c * numRows, (c + 1) * numRows);
+    return flattenT().slice(c * numRows, (c + 1) * numRows);
   }
 
   /**
@@ -294,22 +300,22 @@ class Mat<
    * Access Mat columns at a particular integer offsets
    * @param locs an array of integer offsets
    */
-  Mat<A> colTake(Array<int> locs) /*(implicit ev: ST<A>)*/ => takeCols(locs);
+  Mat<A> colTake(List<int> locs) /*(implicit ev: ST<A>)*/ => takeCols(locs);
 
   /**
    * Access mat columns specified by a slice
    * @param slice a slice specifier
    */
   Mat<A> colSlice(Slice<int> slice) {
-//    val (a, b) = slice(IndexIntRange(numCols));
-//    takeCols(a until b toArray)
+    var res = slice(new IndexIntRange(numCols));
+    return takeCols(range(res[0], res[1]).toList());
   }
 
   /**
    * Returns columns of Mat as an indexed sequence of Vec instances
    */
   Iterable<Vec<A>> cols() /*(implicit ev: ST<A>)*/ =>
-      Range(0, numCols).map(col); // _);
+      range(0, numCols).map(col);
 
   /**
    * Returns columns of Mat as an indexed sequence of Vec instances
@@ -323,8 +329,10 @@ class Mat<
    * @param r Row index
    */
   Vec<A> row(int r) /*(implicit ev: ST<A>)*/ {
-//    assert(r >= 0 && r < numRows, "Array index %d out of bounds" format r)
-    flatten.slice(r * numCols, (r + 1) * numCols);
+    if (r < 0 || r >= numRows) {
+      throw new ArgumentError("Array index $r out of bounds");
+    }
+    return flatten().slice(r * numCols, (r + 1) * numCols);
   }
 
   /**
@@ -337,41 +345,42 @@ class Mat<
    * Access Mat rows at a particular integer offsets
    * @param locs an array of integer offsets
    */
-  Mat<A> rowTake(Array<int> locs) /*(implicit ev: ST<A>)*/ => takeRows(locs);
+  Mat<A> rowTake(List<int> locs) /*(implicit ev: ST<A>)*/ => takeRows(locs);
 
   /**
    * Access Mat rows specified by a slice
    * @param slice a slice specifier
    */
   Mat<A> rowSlice(Slice<int> slice) {
-//    val (a, b) = slice(IndexIntRange(numCols))
-//    takeRows(a until b toArray)
+    var res = slice(new IndexIntRange(numCols));
+    return takeRows(range(res[0], res[1]).toList());
   }
 
   /**
    * Returns rows of matrix as an indexed sequence of Vec instances
    */
-  IndexedSeq<Vec<A>> rows() /*(implicit ev: ST<A>)*/ =>
-      Range(0, numRows).map(row); // _)
+  Iterable<Vec<A>> rows() /*(implicit ev: ST<A>)*/ =>
+      range(0, numRows).map(row);
 
   /**
    * Returns rows of matrix as an indexed sequence of Vec instances
    */
-  IndexedSeq<Vec<A>> rowsTake(IndexedSeq<int> seq) /*(implicit ev: ST<A>)*/ =>
+  Iterable<Vec<A>> rowsTake(Iterable<int> seq) /*(implicit ev: ST<A>)*/ =>
       seq.map(row); // _)
 
   /**
    * Multiplies this matrix against another
    *
    */
-  Mat<double> mult /*[B]*/ (Mat<B> m) /*(implicit evA: NUM[A], evB: NUM[B])*/ {
+  Mat<double> mult /*[B]*/ (
+      Mat /*<B>*/ m) /*(implicit evA: NUM[A], evB: NUM[B])*/ {
     if (numCols != m.numRows) {
-      val errMsg = "Cannot multiply (%d %d) x (%d %d)"
-          .format(numRows, numCols, m.numRows, m.numCols);
-      throw new IllegalArgumentException(errMsg);
+      var errMsg =
+          "Cannot multiply ($numRows $numCols) x (${m.numRows} ${m.numCols})";
+      throw new ArgumentError(errMsg);
     }
 
-    MatMath.mult(this, m);
+    return MatMath.mult(this, m);
   }
 
   /**
@@ -381,9 +390,9 @@ class Mat<
    * @param sig Significance level to round to (e.g., 2 decimal places)
    */
   Mat<double> roundTo([int sig = 2]) /*(implicit ev: NUM[A])*/ {
-    val pwr = math.pow(10, sig);
-    val rounder = (A x) => math.round(scalarTag.toDouble(x) * pwr) / pwr;
-    map(rounder);
+    var pwr = math.pow(10, sig);
+    rounder(x) => (scalarTag.toDouble(x) * pwr).round() / pwr;
+    return map(rounder);
   }
 
   /**
@@ -391,26 +400,22 @@ class Mat<
    */
   Vec<A> toVec();
 
-  /*private*/ Option<Vec<A>> flatCache = null;
+  /*private Option<*/ Vec<A> flatCache = null;
 
-  /*private*/ Vec<A> flatten(/*implicit*/ ST<A> st) {
-//    flatCache.getOrElse {
-//      this.synchronized {
-//        flatCache = Some(toVec)
-//        flatCache.get
-//      }
-//    }
+  /*private*/ Vec<A> flatten(/*implicit ST<A> st*/) {
+    if (flatCache == null) {
+      flatCache = toVec();
+    }
+    return flatCache;
   }
 
-  /*private*/ Option<Vec<A>> flatCacheT = null;
+  /*private Option<*/ Vec<A> flatCacheT = null;
 
-  /*private*/ Vec<A> flattenT(/*implicit*/ ST<A> st) {
-//    flatCacheT.getOrElse {
-//      this.synchronized {
-//        flatCacheT = Some(T.toVec)
-//        flatCacheT.get
-//      }
-//    }
+  /*private*/ Vec<A> flattenT(/*implicit ST<A> st*/) {
+    if (flatCacheT == null) {
+      flatCacheT = T.toVec();
+    }
+    return flatCacheT;
   }
 
   // access like vector in row-major order
@@ -431,35 +436,40 @@ class Mat<
    * @param ncols Max number of cols to include
    */
   String stringify([int nrows = 8, int ncols = 8]) {
-    var halfr = nrows / 2;
-    var halfc = ncols / 2;
+    var halfr = nrows ~/ 2;
+    var halfc = ncols ~/ 2;
 
     var buf = new StringBuffer();
-    buf.append("[%d x %d]\n".format(numRows, numCols));
+    buf.write("[$numRows x $numCols]\n");
 
     /*implicit*/ var st = scalarTag;
 
-    val maxStrLen = (int a, String b) => a.max(b.length);
-//    val maxColLen = (Vec<A> c) => (c.head(halfr) concat c.tail(halfr)).map(scalarTag.show(_)).foldLeft(0)(maxStrLen)
-    val colIdx = util.grab(Range(0, numCols), halfc);
-//    val lenSeq = colIdx.map { c => c -> maxColLen(col(c)) }
-//    val lenMap = lenSeq.toMap.withDefault(_ => 1);
+    maxStrLen(int a, String b) => math.max(a, b.length);
+    maxColLen(Vec<A> c) => c
+        .head(halfr)
+        .concat(c.tail(halfr))
+        .map(scalarTag.show, st)
+        .foldLeft(0, maxStrLen);
+    var colIdx = util.grab(range(0, numCols), halfc);
+    var lenSeq = colIdx.map((c) => range(c, maxColLen(col(c))));
+    Map lenMap; // = lenSeq.toMap.withDefault(_ => 1);
 
     // function to build a row
     createRow(int r) {
-      val buf = new StringBuffer();
-      val strFn = (int col) {
-        val l = lenMap(col);
-//        "%" + { if (l > 0) l else 1 } + "s " format scalarTag.show(apply(r, col));
-      };
-      buf.append(util.buildStr(ncols, numCols, strFn));
-      buf.append("\n");
-      buf.toString();
+      var buf = new StringBuffer();
+      strFn(int col) {
+        var l = lenMap[col];
+//        return "%${ l > 0 ? l : 1 }s " scalarTag.show(apply_(r, col));
+        return "${scalarTag.show(apply_(r, col))} ";
+      }
+      buf.write(util.buildStr(ncols, numCols, strFn));
+      buf.write("\n");
+      return buf.toString();
     }
 
     // build all rows
-    buf.append(util.buildStr(nrows, numRows, createRow, "...\n"));
-    buf.toString();
+    buf.write(util.buildStr(nrows, numRows, createRow, () => "...\n"));
+    return buf.toString();
   }
 
   @override
@@ -475,93 +485,107 @@ class Mat<
 
   /** Default hashcode is simple rolling prime multiplication of sums of hashcodes for all values. */
   @override
-  int get hashCode => toVec.foldLeft(1)(_ * 31 + _.hashCode());
+  int get hashCode => toVec().foldLeft(1, (a, b) => a * 31 + b.hashCode);
 
   /**
    * Row-by-row equality check of all values.
    * NB: to avoid boxing, overwrite in child classes
    */
   @override
-  bool equals(o) {
-//    o match {
-//      case rv: Mat[_] => (this eq rv) || this.numRows == rv.numRows && this.numCols == rv.numCols && {
-//        var i = 0
-//        var eq = true
-//        while(eq && i < length) {
-//          eq &&= (apply(i) == rv(i) || this.scalarTag.isMissing(apply(i)) && rv.scalarTag.isMissing(rv(i)))
-//          i += 1
-//        }
-//        eq
-//      }
-//      case _ => false
-//    }
+  bool operator ==(o) {
+    if (o is Mat) {
+      var rv = o as Mat;
+      if (identical(this, rv)) {
+        return true;
+      } else if (numRows != rv.numRows || numCols != rv.numCols) {
+        return false;
+      } else {
+        var i = 0;
+        bool eq = true;
+        while (eq && i < length) {
+          eq = eq &&
+              (applyFlat_(i) == rv.applyFlat_(i) ||
+                  this.scalarTag.isMissing(applyFlat_(i)) &&
+                      rv.scalarTag.isMissing(rv.applyFlat_(i)));
+          i += 1;
+        }
+        return eq;
+      }
+    } else {
+      return false;
+    }
   }
-}
+//}
 
 //class Mat extends BinOpMat {
-//
-//  /**
-//   * Factory method to create a new Mat from raw materials
-//   * @param rows Number of rows in Mat
-//   * @param cols Number of cols in Mat
-//   * @param arr A 1D array of backing data in row-major order
-//   * @tparam T Type of data in array
-//   */
-//  def apply[T](rows: Int, cols: Int, arr: Array[T])(implicit st: ST[T]): Mat[T] = {
-//    val (r, c, a) = if (rows == 0 || cols == 0) (0, 0, Array.empty[T]) else (rows, cols, arr)
-//    st.makeMat(r, c, a)
-//  }
-//
-//  /**
-//   * Allows implicit promoting from a Mat to a Frame instance
-//   * @param m Mat instance
-//   * @tparam T The type of elements in Mat
-//   */
+
+  /**
+   * Factory method to create a new Mat from raw materials
+   * @param rows Number of rows in Mat
+   * @param cols Number of cols in Mat
+   * @param arr A 1D array of backing data in row-major order
+   * @tparam T Type of data in array
+   */
+  factory Mat(int rows, int cols, List<A> arr,
+      ScalarTag<A> st) /*(implicit st: ST[T])*/ {
+    var r = (rows == 0 || cols == 0) ? 0 : rows;
+    var c = (rows == 0 || cols == 0) ? 0 : rows;
+    var a = (rows == 0 || cols == 0) ? [] : arr;
+    return st.makeMat(r, c, a);
+  }
+
+  /**
+   * Allows implicit promoting from a Mat to a Frame instance
+   * @param m Mat instance
+   * @tparam T The type of elements in Mat
+   */
 //  implicit def matToFrame[T: ST](m: Mat[T]) = Frame(m)
-//
-//  /**
-//   * Factory method to create an empty Mat
-//   * @tparam T Type of Mat
-//   */
-//  def empty[T: ST]: Mat[T] = apply(0, 0, Array.empty[T])
-//
-//  /**
-//   * Factory method to create an zero Mat (all zeros)
-//   * @param numRows Number of rows in Mat
-//   * @param numCols Number of cols in Mat
-//   * @tparam T Type of elements in Mat
-//   */
-//  def apply[T: ST](numRows: Int, numCols: Int): Mat[T] =
-//    apply(numRows, numCols, Array.ofDim[T](numRows * numCols))
-//
-//  /**
-//   * Factory method to create a Mat from an array of arrays. Each inner array
-//   * will become a column of the new Mat instance.
-//   * @param values Array of arrays, each of which is to be a column
-//   * @tparam T Type of elements in inner array
-//   */
-//  def apply[T: ST](values: Array[Array[T]]): Mat[T] = implicitly[ST[T]].makeMat(values.map(Vec(_)))
-//
-//  /**
-//   * Factory method to create a Mat from an array of Vec. Each inner Vec
-//   * will become a column of the new Mat instance.
-//   * @param values Array of Vec, each of which is to be a column
-//   * @tparam T Type of elements in Vec
-//   */
-//  def apply[T: ST](values: Array[Vec[T]]): Mat[T] = implicitly[ST[T]].makeMat(values)
-//
-//  /**
-//   * Factory method to create a Mat from a sequence of Vec. Each inner Vec
-//   * will become a column of the new Mat instance.
-//   * @param values Sequence of Vec, each of which is to be a column
-//   * @tparam T Type of elements in array
-//   */
+
+  /**
+   * Factory method to create an empty Mat
+   * @tparam T Type of Mat
+   */
+  factory Mat.empty /*[T: ST]*/ (ScalarTag<A> st) => new Mat<A>(0, 0, [], st);
+
+  /**
+   * Factory method to create an zero Mat (all zeros)
+   * @param numRows Number of rows in Mat
+   * @param numCols Number of cols in Mat
+   * @tparam T Type of elements in Mat
+   */
+  factory Mat /*[T: ST]*/ .zero(int numRows, int numCols, ScalarTag<A> st) =>
+      new Mat<A>(numRows, numCols, new List<A>(numRows * numCols), st);
+
+  /**
+   * Factory method to create a Mat from an array of arrays. Each inner array
+   * will become a column of the new Mat instance.
+   * @param values Array of arrays, each of which is to be a column
+   * @tparam T Type of elements in inner array
+   */
+  factory Mat /*[T: ST]*/ .fromList(List<List<A>> values, ScalarTag<A> st) =>
+      st.makeMatFromVecs(values.map((a) => new Vec(a, st)), st);
+
+  /**
+   * Factory method to create a Mat from an array of Vec. Each inner Vec
+   * will become a column of the new Mat instance.
+   * @param values Array of Vec, each of which is to be a column
+   * @tparam T Type of elements in Vec
+   */
+  factory Mat.fromVecs /*[T: ST]*/ (List<Vec<A>> values, ScalarTag<A> st) =>
+      st.makeMatFromVecs(values, st);
+
+  /**
+   * Factory method to create a Mat from a sequence of Vec. Each inner Vec
+   * will become a column of the new Mat instance.
+   * @param values Sequence of Vec, each of which is to be a column
+   * @tparam T Type of elements in array
+   */
 //  def apply[T: ST](values: Vec[T]*): Mat[T] = implicitly[ST[T]].makeMat(values.toArray)
-//
-//  /**
-//   * Factory method to create an identity matrix; ie with ones along the
-//   * diagonal and zeros off-diagonal.
-//   * @param n The width of the square matrix
-//   */
-//  def ident(n: Int): Mat[Double] = mat.ident(n)
-//}
+
+  /**
+   * Factory method to create an identity matrix; ie with ones along the
+   * diagonal and zeros off-diagonal.
+   * @param n The width of the square matrix
+   */
+  static Mat<double> ident(int n) => mat.ident(n);
+}
