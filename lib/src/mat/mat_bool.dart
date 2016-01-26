@@ -14,26 +14,27 @@
  * limitations under the License.
  **/
 
-library saddle.mat.double;
+library saddle.mat.bool;
 
 //import scala.{specialized => spec}
-//
 //import org.saddle._
 //import org.saddle.scalar._
 
 import '../mat.dart';
+import '../vec.dart';
 import '../scalar/scalar_tag.dart';
-import '../scalar/scalar_tag_double.dart';
+import '../scalar/scalar_tag_bool.dart';
 import 'mat_impl.dart';
 import 'mat_math.dart';
 
 /**
- * A Mat instance containing elements of type Double
- */
-class MatDouble extends Mat<double> {
+ * A Mat instance containing elements of type Boolean
+ * */
+class MatBool extends Mat<bool> {
   final int r, c;
-  final List<double> values;
-  MatDouble(this.r, this.c, this.values) : super.internal();
+  List<bool> values;
+
+  MatBool(this.r, this.c, this.values) : super.internal();
 
   get repr => this;
 
@@ -41,19 +42,19 @@ class MatDouble extends Mat<double> {
 
   int get numCols => c;
 
-  final ScalarTag scalarTag = ScalarTagDouble;
+  ScalarTag scalarTag = ScalarTagBool;
 
-  Mat /*[B]*/ map /*[@spec(Boolean, Int, Long, Double) B: ST]*/ (
-          dynamic f(double arg), ScalarTag scb) =>
+  Vec<bool> toVec() => scalarTag.makeVec(toArray_());
+
+  Mat map /*[@spec(Boolean, Int, Long, Double) B: ST]*/ (
+          dynamic f(bool arg), ScalarTag scb) =>
       MatImpl.map(this, f, scb);
-
-  toVec() => scalarTag.makeVec(toArray_());
 
   // Cache the transpose: it's much faster to transpose and slice a continuous
   // bound than to take large strides, especially on large matrices where it
   // seems to eject cache lines on each stride (something like 10x slowdown)
-  MatDouble _cachedT;
-  MatDouble get cachedT {
+  MatBool _cachedT = null;
+  MatBool get cachedT {
     if (_cachedT == null) {
       var arrT = new List.from(values);
 
@@ -63,20 +64,21 @@ class MatDouble extends Mat<double> {
         MatMath.blockTranspose(numRows, numCols, this.toArray_(), arrT);
       }
 
-      _cachedT = new MatDouble(numCols, numRows, arrT);
+      _cachedT = new MatBool(numCols, numRows, arrT);
     }
     return _cachedT;
   }
 
   transpose() => cachedT;
 
-  Mat<double> takeRows(List<int> locs) =>
-      MatImpl.takeRows(this, locs, scalarTag);
+  Mat<bool> copy() => new MatBool(numRows, numCols, new List.from(values));
 
-  Mat<double> withoutRows(List<int> locs) =>
+  Mat<bool> takeRows(List<int> locs) => MatImpl.takeRows(this, locs, scalarTag);
+
+  Mat<bool> withoutRows(List<int> locs) =>
       MatImpl.withoutRows(this, locs, scalarTag);
 
-  Mat<double> reshape(int r, int c) => new MatDouble(r, c, values);
+  Mat<bool> reshape(int r, int c) => new MatBool(r, c, values);
 
   // access like vector in row-major order
   /*private[saddle]*/ applyFlat_(int i) => values[i];
@@ -85,12 +87,20 @@ class MatDouble extends Mat<double> {
   /*private[saddle]*/ apply_(int r, int c) => applyFlat_(r * numCols + c);
 
   // use with caution, may not return copy
-  /*private[saddle]*/ List<double> toArray_() => values;
+  /*private[saddle]*/ toArray_() => values;
 
-  // use with caution, may not return copy
-  /*private[saddle]*/ List<double> toDoubleArray_(
-          /*implicit ev: NUM[Double]*/) =>
-      values;
+  /*private[saddle]*/ List<double> toDoubleArray_(/*implicit ev: NUM<bool>*/) =>
+      arrCopyToDblArr(values);
+
+  /*private[saddle]*/ List<double> arrCopyToDblArr(List<bool> r) {
+    var arr = new List<double>(r.length);
+    var i = 0;
+    while (i < r.length) {
+      arr[i] = r[i] ? 1.0 : 0.0;
+      i += 1;
+    }
+    return arr;
+  }
 
   /** Row-by-row equality check of all values. */
   bool operator ==(o) {

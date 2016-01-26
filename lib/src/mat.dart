@@ -19,7 +19,7 @@ library saddle;
 import 'dart:math' as math;
 import 'package:quiver/iterables.dart' show range;
 
-//import 'mat/mat.dart';
+import 'mat/mat.dart' as mat;
 import 'scalar/scalar.dart' show Scalar;
 import 'scalar/scalar_tag.dart' show ScalarTag;
 //import 'ops/ops.dart' show BinOpMat, NumericOps;
