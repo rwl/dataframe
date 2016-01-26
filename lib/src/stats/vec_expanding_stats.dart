@@ -30,6 +30,8 @@ import '../scalar/scalar_tag_int.dart';
  * These methods scan over the Vec and compute cumulative values.
  */
 abstract class VecExpandingStats<A> /*[@spec(Int, Long, Double) A]*/ {
+  Vec<A> get r;
+
   /**
    * Cumulative sum; each successive element of the output is the cumulative
    * sum from the initial element, ignoring NAs.
@@ -61,35 +63,37 @@ abstract class VecExpandingStats<A> /*[@spec(Int, Long, Double) A]*/ {
   Vec<A> cumProd();
 }
 
-class DoubleExpandingStats implements VecExpandingStats<double> {
-  Vec<double> r;
-  DoubleExpandingStats(this.r);
+abstract class DoubleExpandingStats implements VecExpandingStats<double> {
+//  Vec<double> get r;
+//  Vec<double> r;
+//  DoubleExpandingStats(this.r);
 
   /*private*/ var sd = ScalarTagDouble;
 
-  Vec<double> cumSum() => r.filterScanLeft(sd.notMissing)(0.0)((a, b) => a + b);
-  Vec<int> cumCount() => r.filterScanLeft(sd.notMissing)(0)((a, b) => a + 1);
-  Vec<double> cumMin() => r.filterScanLeft(sd.notMissing)(sd.inf)(
-      (double x, double y) => x < y ? x : y);
-  Vec<double> cumMax() => r.filterScanLeft(sd.notMissing)(sd.negInf)(
-      (double x, double y) => x > y ? x : y);
+  Vec<double> cumSum() => r.filterScanLeft(sd.notMissing, 0.0, (a, b) => a + b);
+  Vec<int> cumCount() => r.filterScanLeft(sd.notMissing, 0, (a, b) => a + 1);
+  Vec<double> cumMin() => r.filterScanLeft(
+      sd.notMissing, sd.inf, (double x, double y) => x < y ? x : y);
+  Vec<double> cumMax() => r.filterScanLeft(
+      sd.notMissing, sd.negInf, (double x, double y) => x > y ? x : y);
   Vec<double> cumProd() =>
-      r.filterScanLeft(sd.notMissing)(1.0)((a, b) => a * b);
+      r.filterScanLeft(sd.notMissing, 1.0, (a, b) => a * b);
 }
 
-class IntExpandingStats implements VecExpandingStats<int> {
-  Vec<int> r;
-  IntExpandingStats(this.r);
+abstract class IntExpandingStats implements VecExpandingStats<int> {
+//  Vec<int> get r;
+//  Vec<int> r;
+//  IntExpandingStats(this.r);
 
   /*private*/ var sa = ScalarTagInt;
 
-  Vec<int> cumSum() => r.filterScanLeft(sa.notMissing)(0)((a, b) => a + b);
-  Vec<int> cumCount() => r.filterScanLeft(sa.notMissing)(0)((a, b) => a + 1);
+  Vec<int> cumSum() => r.filterScanLeft(sa.notMissing, 0, (a, b) => a + b);
+  Vec<int> cumCount() => r.filterScanLeft(sa.notMissing, 0, (a, b) => a + 1);
   Vec<int> cumMin() =>
-      r.filterScanLeft(sa.notMissing)(sa.inf)((int x, int y) => x < y ? x : y);
-  Vec<int> cumMax() => r.filterScanLeft(sa.notMissing)(sa.negInf)(
-      (int x, int y) => x > y ? x : y);
-  Vec<int> cumProd() => r.filterScanLeft(sa.notMissing)(1)((a, b) => a * b);
+      r.filterScanLeft(sa.notMissing, sa.inf, (int x, int y) => x < y ? x : y);
+  Vec<int> cumMax() => r.filterScanLeft(
+      sa.notMissing, sa.negInf, (int x, int y) => x > y ? x : y);
+  Vec<int> cumProd() => r.filterScanLeft(sa.notMissing, 1, (a, b) => a * b);
 }
 /*
 class LongExpandingStats(r: Vec[Long]) extends VecExpandingStats[Long] {

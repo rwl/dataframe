@@ -24,8 +24,18 @@ library saddle.scalar;
 //import org.saddle.locator.{Locator, LocatorAny}
 //import org.saddle.array.Sorter
 
+import 'scalar_tag.dart';
+import '../vec.dart';
+import '../vec/vec_bool.dart';
+import '../index/index_any.dart';
+import '../index.dart';
+import '../locator/locator.dart';
+import '../locator/locator_any.dart';
+import '../buffer.dart';
+import '../util/util.dart';
+
 class ScalarTagAny<T> /*[T: CLM]*/ extends ScalarTag<T> {
-  T get missing => null.asInstanceOf /*<T>*/ ();
+  T missing() => null; //.asInstanceOf /*<T>*/ ();
   bool isMissing(T v) => v == null;
   bool notMissing(T v) => v != null;
 
@@ -37,16 +47,17 @@ class ScalarTagAny<T> /*[T: CLM]*/ extends ScalarTag<T> {
     } else if (y == null) {
       return 1;
     } else {
-      return ev.compare(x, y);
+      return identical(x, y) ? 1 : 0; //ev.compare(x, y);
     }
   }
 
-  double toDouble(T t) /*(implicit ev: NUM<T>)*/ => ev.toDouble(t);
+  double toDouble(T t) /*(implicit ev: NUM<T>)*/ =>
+      (t as dynamic).toDouble(); //ev.toDouble(t);
 
-  T zero(/*implicit*/ Numeric<T> ev) => ev.zero;
-  T one(/*implicit*/ Numeric<T> ev) => ev.one;
-  T inf(/*implicit*/ Numeric<T> ev) => sys.error("Infinities not supported");
-  T negInf(/*implicit*/ Numeric<T> ev) => sys.error("Infinities not supported");
+  T zero(/*implicit Numeric<T> ev*/) => ev.zero;
+  T one(/*implicit Numeric<T> ev*/) => ev.one;
+  T inf(/*implicit Numeric<T> ev*/) => throw "Infinities not supported";
+  T negInf(/*implicit Numeric<T> ev*/) => throw "Infinities not supported";
 
   show(T v) => "%s".format(v == null ? "NA" : v.toString());
 

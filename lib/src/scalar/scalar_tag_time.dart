@@ -24,22 +24,38 @@ library saddle.scalar;
 //import org.saddle.vec.VecTime
 //import org.saddle.index.IndexTime
 
+import 'scalar_tag_any.dart';
+import 'scalar_tag_int.dart';
+import '../vec.dart';
+//import '../vec/vec_time.dart';
+//import '../index/index_time.dart';
+import '../index.dart';
+import '../locator/locator.dart';
+//import '../locator/locator_time.dart';
+import '../buffer.dart';
+import '../util/util.dart';
+
 /**
  * DateTime ScalarTag
  */
 class ScalarTagTime extends ScalarTagAny<DateTime> {
   List<int> time2LongArray(List<DateTime> arr) {
-    val sz = arr.length;
-    val larr = Array.ofDim[Long](sz);
+    var sz = arr.length;
+    var larr = new List<int>(sz);
     var i = 0;
     while (i < sz) {
+      if (arr[i] == null) {
+        larr[i] = ScalarTagInt.missing();
+      } else {
+        larr[i] = arr[i].millisecondsSinceEpoch;
+      }
 //      larr(i) = Option(arr(i)) match {
 //        case Some(x) => x.getMillis
 //        case None    => ScalarTagLong.missing
 //      }
       i += 1;
     }
-    larr;
+    return larr;
   }
 
   @override
@@ -52,7 +68,7 @@ class ScalarTagTime extends ScalarTagAny<DateTime> {
       new IndexTime(new Index(time2LongArray(vec.toArray)));
 
   @override
-  Sorter<DateTime> makeSorter(/*implicit*/ Ordering<DateTime> ord) =>
+  Sorter<DateTime> makeSorter(/*implicit Ordering<DateTime> ord*/) =>
       Sorter.timeSorter;
 
 //  @transient lazy private val fmtZ = DateTimeFormat.forPattern("YYYY-MM-dd HH:mm:ss.SSSZZ")

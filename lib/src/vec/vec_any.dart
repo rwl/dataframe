@@ -22,12 +22,14 @@ library saddle.vec;
 //import org.saddle.scalar._
 //import util.Concat.Promoter
 
+import '../vec.dart';
+
 /**
  * Vec of Any
  */
 class VecAny<T> /*[T: ST]*/ extends Vec<T> {
   //self =>
-  VecAny(List<T> values);
+  VecAny(List<T> values) : super.internal();
 
   int get length => values.length;
 

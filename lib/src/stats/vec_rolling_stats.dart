@@ -29,10 +29,11 @@ import '../vec.dart';
  * These methods scan over the Vec and compute values over a specified historical
  * window.
  */
-class VecRollingStats<
+abstract class VecRollingStats<
     A> /*[@spec(Int, Long, Double) A: ST: Vec2Stats: AddOp: SubOp: NUM]*/ {
-  Vec<A> v;
-  VecRollingStats(this.v);
+  Vec<A> get v;
+//  Vec<A> v;
+//  VecRollingStats(this.v);
 
   /**
    * Rolling count; compute count of number of elements in Vec over a sliding window, ignoring

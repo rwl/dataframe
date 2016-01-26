@@ -30,8 +30,11 @@ import '../scalar/scalar_tag.dart';
 import '../scalar/scalar_tag_int.dart';
 import '../array/array.dart';
 import '../stats/vec_stats.dart';
+import '../stats/vec_expanding_stats.dart';
+import '../stats/vec_rolling_stats.dart';
 
-class VecInt extends Vec<int> with IntStats {
+class VecInt extends Vec<int>
+    with IntStats, IntExpandingStats, VecRollingStats {
   Vec<int> get r => this;
 
   //self =>

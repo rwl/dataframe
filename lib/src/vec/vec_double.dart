@@ -30,9 +30,12 @@ import '../scalar/scalar_tag.dart';
 import '../scalar/scalar_tag_double.dart';
 import '../array/array.dart';
 import '../stats/vec_stats.dart';
+import '../stats/vec_rolling_stats.dart';
+import '../stats/vec_expanding_stats.dart';
 import 'vec_impl.dart';
 
-class VecDouble extends Vec<double> with DoubleStats {
+class VecDouble extends Vec<double>
+    with DoubleStats, DoubleExpandingStats, VecRollingStats {
   Vec<double> get r => this;
 
   //self =>
