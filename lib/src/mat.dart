@@ -27,8 +27,10 @@ import 'scalar/scalar_tag.dart' show ScalarTag;
 //import java.io.OutputStream
 //import 'index.dart' show IndexIntRange, Slice;
 import 'index/slice.dart' show Slice;
+import 'index/index_int_range.dart';
 import 'vec.dart';
 import 'util/util.dart' as util;
+import 'mat/mat_math.dart';
 
 /**
  * `Mat` is an immutable container for 2D homogeneous data (a "matrix"). It is
@@ -72,6 +74,8 @@ abstract class Mat<
     A> /*[@spec(Boolean, Int, Long, Double)*/ /*extends NumericOps<Mat<A>>
     with Serializable*/
 {
+  A operator [](int index) => rawFlat(index);
+
   ScalarTag<A> scalarTag;
 
   /**
@@ -185,7 +189,8 @@ abstract class Mat<
   /**
    * Maps a function over each element in the matrix
    */
-  Mat map /*[@spec(Boolean, Int, Long, Double) B: ST]*/ (dynamic f(arg));
+  Mat map /*[@spec(Boolean, Int, Long, Double) B: ST]*/ (
+      dynamic f(arg), ScalarTag scb);
 
   /**
    * Changes the shape of matrix without changing the underlying data
@@ -392,7 +397,7 @@ abstract class Mat<
   Mat<double> roundTo([int sig = 2]) /*(implicit ev: NUM[A])*/ {
     var pwr = math.pow(10, sig);
     rounder(x) => (scalarTag.toDouble(x) * pwr).round() / pwr;
-    return map(rounder);
+    return map(rounder, ScalarTag.stDouble);
   }
 
   /**
@@ -518,6 +523,8 @@ abstract class Mat<
 //}
 
 //class Mat extends BinOpMat {
+
+  Mat.internal();
 
   /**
    * Factory method to create a new Mat from raw materials

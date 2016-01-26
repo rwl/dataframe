@@ -24,12 +24,15 @@ library saddle.index;
 //import vec.VecImpl
 //import locator.Locator
 
+import '../index.dart';
+import 'join_type.dart';
+
 /**
  * An implementation of [[org.saddle.Index]] generic in type T for which there is an Ordering<T>
  * and a ST<T> available in the implicit context.
  */
 class IndexAny<T> /*[T: ST: ORD]*/ extends Index<T> {
-  IndexAny(Vec<T> keys);
+  IndexAny(Vec<T> keys) : super.internal();
 
   val scalarTag = keys.scalarTag;
 
@@ -62,7 +65,7 @@ class IndexAny<T> /*[T: ST: ORD]*/ extends Index<T> {
 
   Index<T> get reversed => new IndexAny<T>(toVec.reversed);
 
-  ReIndexer<T> join(Index<T> other, [JoinType how = LeftJoin]) =>
+  ReIndexer<T> join(Index<T> other, [JoinType how = JoinType.LeftJoin]) =>
       JoinerImpl.join(this, other, how);
 
   // Intersects two indices if both have set semantics
@@ -113,7 +116,10 @@ class IndexAny<T> /*[T: ST: ORD]*/ extends Index<T> {
 
   // adapted from java source
   /*private*/ int binarySearch(Array<T> a, T key) {
-    /*@tailrec*/ int bSearch([int lo = 0, int hi = a.length - 1]) {
+    /*@tailrec*/ int bSearch([int lo = 0, int hi]) {
+      if (hi == null) {
+        hi = a.length - 1;
+      }
       if (lo > hi) {
         -(lo + 1);
       } else {
