@@ -22,6 +22,7 @@ import 'ops/ops.dart' show BinOpMat, NumericOps;
 //import scala.{specialized => spec}
 //import java.io.OutputStream
 import 'index.dart' show IndexIntRange, Slice;
+import 'vec.dart';
 
 /**
  * `Mat` is an immutable container for 2D homogeneous data (a "matrix"). It is
@@ -61,8 +62,8 @@ import 'index.dart' show IndexIntRange, Slice;
  *
  * @tparam A Type of elements within the Mat
  */
-class Mat /*[@spec(Boolean, Int, Long, Double)*/ <
-    A> /*extends NumericOps<Mat<A>>
+class Mat<
+    A> /*[@spec(Boolean, Int, Long, Double)*/ /*extends NumericOps<Mat<A>>
     with Serializable*/
 {
   ScalarTag<A> scalarTag;
@@ -102,7 +103,7 @@ class Mat /*[@spec(Boolean, Int, Long, Double)*/ <
    *
    * @param i index
    */
-  A raw(int i) => apply(i);
+  A rawFlat(int i) => applyFlat_(i);
 
   /**
    * Return unboxed value of matrix at row/column
@@ -110,15 +111,15 @@ class Mat /*[@spec(Boolean, Int, Long, Double)*/ <
    * @param r row index
    * @param c col index
    */
-  A raw(int r, int c) => apply(r, c);
+  A raw(int r, int c) => apply_(r, c);
 
   /**
    * Return scalar value of matrix at offset from zero in row-major order
    *
    * @param i index
    */
-  Scalar<A> at(int i) /*(implicit st: ScalarTag[A])*/ {
-    Scalar(raw(i));
+  Scalar<A> atFlat(int i) /*(implicit st: ScalarTag[A])*/ {
+    return new Scalar(rawFlat(i), scalarTag);
   }
 
   /**
@@ -127,7 +128,7 @@ class Mat /*[@spec(Boolean, Int, Long, Double)*/ <
    * @param c col index
    */
   Scalar<A> at(int r, int c) /*(implicit st: ScalarTag[A])*/ {
-    Scalar(raw(r, c));
+    return new Scalar(raw(r, c), scalarTag);
   }
 
   /**
@@ -135,7 +136,7 @@ class Mat /*[@spec(Boolean, Int, Long, Double)*/ <
    * @param r Array of row offsets
    * @param c Array of col offsets
    */
-  Mat<A> at(Array<int> r, Array<int> c) /*(implicit st: ScalarTag[A])*/ {
+  Mat<A> atTake(List<int> r, List<int> c) /*(implicit st: ScalarTag[A])*/ {
     row(r).col(c);
   }
 
@@ -144,7 +145,7 @@ class Mat /*[@spec(Boolean, Int, Long, Double)*/ <
    * @param r Array of row offsets
    * @param c Integer col offset
    */
-  Vec<A> at(Array<int> r, int c) /*(implicit st: ScalarTag[A])*/ {
+  Vec<A> atCol(List<int> r, int c) /*(implicit st: ScalarTag[A])*/ {
     row(r).col(c);
   }
 
@@ -153,7 +154,7 @@ class Mat /*[@spec(Boolean, Int, Long, Double)*/ <
    * @param r Integer row offset
    * @param c Array of col offsets
    */
-  Vec<A> at(int r, Array<int> c) /*(implicit st: ScalarTag[A])*/ {
+  Vec<A> atRow(int r, List<int> c) /*(implicit st: ScalarTag[A])*/ {
     col(c).row(r);
   }
 
@@ -162,7 +163,7 @@ class Mat /*[@spec(Boolean, Int, Long, Double)*/ <
    * @param r Slice to apply to rows
    * @param c Slice to apply to cols
    */
-  Mat<A> at(Slice<int> r, Slice<int> c) /*(implicit st: ScalarTag[A])*/ =>
+  Mat<A> atSlice(Slice<int> r, Slice<int> c) /*(implicit st: ScalarTag[A])*/ =>
       row(r).col(c);
 
   /**
@@ -170,7 +171,7 @@ class Mat /*[@spec(Boolean, Int, Long, Double)*/ <
    * row-major order
    *
    */
-  Array<A> get contents => toVec.toArray;
+  List<A> get contents => toVec().toArray();
 
   // Must implement specialized methods using non-specialized subclasses as workaround to
   // https://issues.scala-lang.org/browse/SI-5281
@@ -293,13 +294,13 @@ class Mat /*[@spec(Boolean, Int, Long, Double)*/ <
    * Access Mat columns at a particular integer offsets
    * @param locs an array of integer offsets
    */
-  Mat<A> col(Array<int> locs) /*(implicit ev: ST<A>)*/ => takeCols(locs);
+  Mat<A> colTake(Array<int> locs) /*(implicit ev: ST<A>)*/ => takeCols(locs);
 
   /**
    * Access mat columns specified by a slice
    * @param slice a slice specifier
    */
-  Mat<A> col(Slice<int> slice) {
+  Mat<A> colSlice(Slice<int> slice) {
 //    val (a, b) = slice(IndexIntRange(numCols));
 //    takeCols(a until b toArray)
   }
@@ -307,13 +308,13 @@ class Mat /*[@spec(Boolean, Int, Long, Double)*/ <
   /**
    * Returns columns of Mat as an indexed sequence of Vec instances
    */
-  IndexedSeq<Vec<A>> cols() /*(implicit ev: ST<A>)*/ =>
+  Iterable<Vec<A>> cols() /*(implicit ev: ST<A>)*/ =>
       Range(0, numCols).map(col); // _);
 
   /**
    * Returns columns of Mat as an indexed sequence of Vec instances
    */
-  IndexedSeq<Vec<A>> cols(IndexedSeq<int> seq) /*(implicit ev: ST<A>)*/ =>
+  Iterable<Vec<A>> colsTake(Iterable<int> seq) /*(implicit ev: ST<A>)*/ =>
       seq.map(col); // _);
 
   /**
@@ -336,13 +337,13 @@ class Mat /*[@spec(Boolean, Int, Long, Double)*/ <
    * Access Mat rows at a particular integer offsets
    * @param locs an array of integer offsets
    */
-  Mat<A> row(Array<int> locs) /*(implicit ev: ST<A>)*/ => takeRows(locs);
+  Mat<A> rowTake(Array<int> locs) /*(implicit ev: ST<A>)*/ => takeRows(locs);
 
   /**
    * Access Mat rows specified by a slice
    * @param slice a slice specifier
    */
-  Mat<A> row(Slice<int> slice) {
+  Mat<A> rowSlice(Slice<int> slice) {
 //    val (a, b) = slice(IndexIntRange(numCols))
 //    takeRows(a until b toArray)
   }
@@ -356,7 +357,7 @@ class Mat /*[@spec(Boolean, Int, Long, Double)*/ <
   /**
    * Returns rows of matrix as an indexed sequence of Vec instances
    */
-  IndexedSeq<Vec<A>> rows(IndexedSeq<int> seq) /*(implicit ev: ST<A>)*/ =>
+  IndexedSeq<Vec<A>> rowsTake(IndexedSeq<int> seq) /*(implicit ev: ST<A>)*/ =>
       seq.map(row); // _)
 
   /**
@@ -413,16 +414,16 @@ class Mat /*[@spec(Boolean, Int, Long, Double)*/ <
   }
 
   // access like vector in row-major order
-  /*private[saddle]*/ A apply(int i);
+  /*private[saddle]*/ A applyFlat_(int i);
 
   // implement access like matrix(i, j)
-  /*private[saddle]*/ A apply(int r, int c);
+  /*private[saddle]*/ A apply_(int r, int c);
 
   // use with caution, may not return copy
-  /*private[saddle]*/ List<A> toArray();
+  /*private[saddle]*/ List<A> toArray_();
 
   // use with caution, may not return copy
-  /*private[saddle]*/ List<double> toDoubleArray(/*implicit*/ NUM<A> ev);
+  /*private[saddle]*/ List<double> toDoubleArray_(/*implicit NUM<A> ev*/);
 
   /**
    * Creates a string representation of Mat
@@ -468,9 +469,9 @@ class Mat /*[@spec(Boolean, Int, Long, Double)*/ <
    * Pretty-printer for Mat, which simply outputs the result of stringify.
    * @param nrows Number of elements to display
    */
-  print([int nrows = 8, int ncols = 8, OutputStream stream = System.out]) {
-    stream.write(stringify(nrows, ncols).getBytes);
-  }
+//  print([int nrows = 8, int ncols = 8, OutputStream stream = System.out]) {
+//    stream.write(stringify(nrows, ncols).getBytes);
+//  }
 
   /** Default hashcode is simple rolling prime multiplication of sums of hashcodes for all values. */
   @override
