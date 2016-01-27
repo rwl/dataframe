@@ -51,7 +51,7 @@ abstract class ScalarTag<T> /*[@spec(Boolean, Int, Long, Float, Double) T]*/
   bool isTuple = false;
   bool isDouble = false;
 
-//  def strList = (v: T) => List(show(v))
+  List<String> strList(T v) => [show(v)];
 
   String show(T v);
 
