@@ -30,7 +30,7 @@ import '../vec/vec_bool.dart';
 import '../index/index_bool.dart';
 import '../index.dart';
 import '../locator/locator.dart';
-import '../locator/locator_bool.dart';
+//import '../locator/locator_bool.dart';
 import '../buffer.dart';
 import '../util/util.dart';
 

@@ -14,57 +14,61 @@
  * limitations under the License.
  **/
 
-library org.saddle.locator
+library saddle.locator.any;
 
-import org.saddle.ST
-import it.unimi.dsi.fastutil.objects.{Object2IntLinkedOpenHashMap, Object2IntOpenHashMap}
+//import org.saddle.ST
+//import it.unimi.dsi.fastutil.objects.{Object2IntLinkedOpenHashMap, Object2IntOpenHashMap}
+
+import 'locator.dart';
 
 /**
  * An object-to-integer hash map, backed by fastutil implementation
  */
-class LocatorAny[T: ST](sz: Int = Locator.INIT_CAPACITY) extends Locator[T] {
-  val map = new Object2IntLinkedOpenHashMap[T](sz)
-  val cts = new Object2IntOpenHashMap[T](sz)
+class LocatorAny<T> /*[T: ST]*/ extends Locator<T> {
+  LocatorAny([int sz = Locator.INIT_CAPACITY]) : super.internal();
 
-  map.defaultReturnValue(-1)
-  cts.defaultReturnValue(0)
+  Map map = {}; //new Object2IntLinkedOpenHashMap<T>(sz);
+  Map cts = {}; //new Object2IntOpenHashMap<T>(sz);
 
-  def get(key: T): Int = map.getInt(key)
+//  map.defaultReturnValue(-1)
+//  cts.defaultReturnValue(0)
 
-  def put(key: T, value: Int) {
+  int get(T key) => map.getInt(key);
+
+  put(T key, int value) {
     // prevents unboxing!
-    val tmp: Int = map.put(key, value)
+    int _ = map[key] = value;
   }
 
-  def contains(key: T) = map.containsKey(key)
+  bool contains(T key) => map.containsKey(key);
 
-  def size = map.size()
+  int get size => map.size();
 
-  def inc(key: T) = cts.addTo(key, 1)
+  inc(T key) => cts.addTo(key, 1);
 
-  def count(key: T) = cts.getInt(key)
+  int count(T key) => cts.getInt(key);
 
-  def counts() = {
-    val iter = map.keySet().iterator()
-    val res  = Array.ofDim[Int](size)
-    var i = 0
-    while(iter.hasNext) {
-      res(i) = cts.getInt(iter.next())
-      i += 1
+  int counts() {
+    var iter = map.keySet().iterator();
+    var res = new List<int>(size);
+    var i = 0;
+    while (iter.hasNext) {
+      res[i] = cts.getInt(iter.next());
+      i += 1;
     }
-    res
+    return res;
   }
 
-  def keys() = {
-    val ks = map.keySet()
-    val it = ks.iterator()
-    val sz = ks.size()
-    val newArr = implicitly[ST[T]].newArray(sz)
-    var i = 0
+  keys() {
+    var ks = map.keySet();
+    var it = ks.iterator();
+    var sz = ks.size();
+    var newArr = /*implicitly[ST<T>]*/ scalarTag.newArray(sz);
+    var i = 0;
     while (i < sz) {
-      newArr(i) = it.next()
-      i += 1
+      newArr[i] = it.next();
+      i += 1;
     }
-    newArr
+    return newArr;
   }
 }

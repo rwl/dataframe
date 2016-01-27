@@ -20,7 +20,6 @@ library saddle;
 import 'ops/ops.dart';
 import 'vec/vec.dart';
 //import 'stats/stats.dart';
-import 'index/index.dart';
 import 'index/join_type.dart';
 //import 'groupby/groupby.dart';
 import 'scalar/scalar.dart';

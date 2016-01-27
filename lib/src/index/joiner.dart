@@ -14,10 +14,14 @@
  * limitations under the License.
  **/
 
-library saddle.index;
+library saddle.index.joiner;
 
 //import org.saddle._
 //import scala.{ specialized => spec }
+
+import 'reindexer.dart';
+import 'join_type.dart';
+import '../index.dart';
 
 /**
  * Abstract interface for a Joiner instance

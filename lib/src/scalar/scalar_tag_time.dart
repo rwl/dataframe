@@ -35,10 +35,12 @@ import '../locator/locator.dart';
 import '../buffer.dart';
 import '../util/util.dart';
 
+final _ScalarTagTime ScalarTagTime = new _ScalarTagTime();
+
 /**
  * DateTime ScalarTag
  */
-class ScalarTagTime extends ScalarTagAny<DateTime> {
+class _ScalarTagTime extends ScalarTagAny<DateTime> {
   List<int> time2LongArray(List<DateTime> arr) {
     var sz = arr.length;
     var larr = new List<int>(sz);

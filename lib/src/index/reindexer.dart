@@ -14,7 +14,7 @@
  * limitations under the License.
  **/
 
-library saddle.index;
+library saddle.index.reindexer;
 
 //import org.saddle._
 import '../index.dart';

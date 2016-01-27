@@ -17,7 +17,6 @@
 library saddle;
 
 import 'vec/vec.dart';
-import 'index/index.dart';
 import 'index/join_type.dart';
 //import 'groupby/groupby.dart';
 import 'ops/ops.dart';

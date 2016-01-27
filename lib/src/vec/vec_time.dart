@@ -43,13 +43,14 @@ import '../stats/vec_stats.dart';
 class VecTime extends Vec<DateTime> {
   Vec<int> times;
   DateTimeZone tzone;
-  VecTime(this.times, [this.tzone = ISO_CHRONO.getZone]);
+  VecTime(this.times /*, [this.tzone = ISO_CHRONO.getZone]*/)
+      : super.internal();
 
   /*@transient lazy*/
   ScalarTag scalarTag = ScalarTagTime;
 
   /*@transient lazy*/
-  var chrono = ISO_CHRONO.withZone(tzone);
+  var chrono; // = ISO_CHRONO.withZone(tzone);
 
   /*@transient lazy private*/
   var lmf = scalar.ScalarTagInt;
@@ -152,7 +153,7 @@ class VecTime extends Vec<DateTime> {
       vl2vt(times.fillNA((a) => t2l(f(a))));
 
   @override
-  Vec<DateTime> reversed() => vl2vt(times.reversed);
+  Vec<DateTime> get reversed => vl2vt(times.reversed);
 
   /*protected*/
   Vec<DateTime> copy() => vl2vt(new Vec(times.contents));
@@ -197,7 +198,7 @@ class VecTime extends Vec<DateTime> {
   /**
    * Concatenate several Vec<DateTime> instances into one
    */
-  factory VecTime.concat(Iterable<Vec<DateTime>> arr) {
+  factory VecTime.cat(Iterable<Vec<DateTime>> arr) {
     List<VecTime> vecs = arr.map((v) {
       if (v is VecTime) {
         return v;

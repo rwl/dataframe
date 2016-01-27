@@ -14,7 +14,7 @@
  * limitations under the License.
  **/
 
-library saddle.index;
+library saddle.index.impl;
 
 //import scala.{ specialized => spec }
 //import org.saddle._
@@ -22,69 +22,22 @@ library saddle.index;
 
 import '../index.dart';
 import '../locator/locator.dart';
+import '../scalar/scalar_tag.dart';
 
 /**
  * Helper class for Index instances
  */
 /*private[saddle]*/ class IndexImpl {
-//  case class IndexProperties(contiguous: Boolean,  // if there are duplicates, are they all in the same place?
-//                             monotonic: Boolean)   // are the elements ordered (ascending)?
+  static sentinelErr() =>
+      throw new IndexError(-1, null, "Cannot access index position -1");
 
-  static sentinelErr() => throw new ArrayIndexOutOfBoundsException(
-      "Cannot access index position -1");
-
-  /*(Locator[T], IndexProperties)*/ keys2map /*[@spec(Boolean, Int, Long, Double) T: ST: ORD]*/ (
-      Index<T> keys) {
-    var map = Locator[T](keys.length);
+  static Keys2Map /*(Locator[T], IndexProperties)*/ keys2map /*[@spec(Boolean, Int, Long, Double) T: ST: ORD]*/ (
+      Index /*<T>*/ keys, ScalarTag st) {
+    var map = new Locator /*[T]*/ (st, keys.length);
     var sc = keys.scalarTag;
     var i = 0;
     var contiguous = true;
     var monotonic = true;
-    while (i < keys.length) {
-      val k = keys.raw(i);
-      if (map.inc(k) == 0) {
-        map.put(k, i);
-      } else {
-        if (k != keys.raw(i - 1)) contiguous = false;
-      }
-      if (i > 0) {
-//        monotonic &&= !sc.gt(keys.raw(i-1), keys.raw(i));
-      }
-      i += 1;
-    }
-//    (map, IndexProperties(contiguous, monotonic))
-  }
-
-  static bool contiguous(Index keys) {
-    var sc = keys.scalarTag;
-    var i = 0;
-    var contiguous = true;
-    while (i < keys.length) {
-      var k = keys.raw(i);
-      if (map.inc(k) == 0) {
-        map.put(k, i);
-      } else {
-        if (k != keys.raw(i - 1)) contiguous = false;
-      }
-      if (i > 0) {
-//        monotonic &&= !sc.gt(keys.raw(i-1), keys.raw(i));
-      }
-      i += 1;
-    }
-  }
-}
-
-class IndexProperties<T> {
-  bool contiguous;
-  bool monotonic;
-  Locator map;
-
-  IndexProperties(Index keys) {
-    var sc = keys.scalarTag;
-    map = new Locator<T>(sc, keys.length);
-    var i = 0;
-    contiguous = true;
-    monotonic = true;
     while (i < keys.length) {
       var k = keys.raw(i);
       if (map.inc(k) == 0) {
@@ -97,5 +50,21 @@ class IndexProperties<T> {
       }
       i += 1;
     }
+    return new Keys2Map(map, new IndexProperties(contiguous, monotonic));
   }
+}
+
+class IndexProperties<T> {
+  // if there are duplicates, are they all in the same place?
+  final bool contiguous;
+  // are the elements ordered (ascending)?
+  final bool monotonic;
+
+  IndexProperties(this.contiguous, this.monotonic);
+}
+
+class Keys2Map<T> {
+  final Locator<T> locator;
+  final IndexProperties props;
+  Keys2Map(this.locator, this.props);
 }

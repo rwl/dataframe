@@ -1,4 +1,5 @@
 name: dataframe
 dependencies:
+  collection: any
   quiver: any
   test: any

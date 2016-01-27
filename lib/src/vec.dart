@@ -22,7 +22,6 @@ import 'dart:math' as math;
 import 'dart:collection';
 
 import 'vec/vec.dart';
-import 'index/index.dart';
 import 'ops/ops.dart';
 import 'scalar/scalar.dart';
 //import 'util/concat.dart' show Promoter;

@@ -14,83 +14,81 @@
  * limitations under the License.
  **/
 
-library saddle.index;
+library saddle.index.bool;
 
 //import scala.{specialized => spec}
-//import java.util.Arrays._
 //import org.saddle._
+//import vec.{VecImpl, VecBool}
 //import util.Concat.Promoter
 //import index.IndexImpl.IndexProperties
-//import vec.VecImpl
 //import locator.Locator
 //import org.saddle.scalar._
-
-import 'package:collection/algorithms.dart' show binarySearch;
 
 import '../array/array.dart';
 import '../index.dart';
 import 'join_type.dart';
 import '../vec.dart';
 import '../scalar/scalar_tag.dart';
-import '../scalar/scalar_tag_int.dart';
+import '../scalar/scalar_tag_bool.dart';
 import '../locator/locator.dart';
 import '../index/reindexer.dart';
 import '../index/joiner_impl.dart';
 import '../vec/vec_impl.dart';
+import '../vec/vec_bool.dart';
 
 import 'index_impl.dart';
 
 /**
  * Index with integer keys
  */
-class IndexInt extends Index<int> {
-  Vec<int> keys;
+class IndexBool extends Index<bool> {
+  Vec<bool> keys;
+  IndexBool(this.keys) : super.internal();
 
-  IndexInt(this.keys) : super.internal();
+  ScalarTag scalarTag = ScalarTagBool;
 
-  ScalarTag<int> scalarTag = ScalarTagInt;
-
-//  private lazy val (lmap, IndexProperties(contiguous, monotonic)) = IndexImpl.keys2map(this)
-  Keys2Map<int> __keys2map = null;
-  Keys2Map<int> get _keys2map {
+//  private lazy val (kmap, IndexProperties(contiguous, monotonic)) = IndexImpl.keys2map(this)Keys2Map<int> __keys2map = null;
+  Keys2Map<bool> __keys2map = null;
+  Keys2Map<bool> get _keys2map {
     if (__keys2map == null) {
       __keys2map = IndexImpl.keys2map(this, scalarTag);
     }
     return __keys2map;
   }
 
-  /*protected*/ Locator<int> get locator => _keys2map.locator;
+  /*protected*/ Locator<bool> get locator => _keys2map.locator;
 
   int get length => keys.length;
 
-  Vec<int> toVec() => keys;
+  Vec<bool> toVec() => keys;
 
   // get the key at the position specified
-  int raw(int idx) => keys[idx];
+  bool raw(int idx) => keys[idx];
 
-  Index<int> take(List<int> locs) => new Index(
-      array.take(keys.toArray(), locs, IndexImpl.sentinelErr), scalarTag);
+  Index<bool> take(List<int> locs) => new Index<bool>(
+      array.take(keys.toArray(), locs, () => IndexImpl.sentinelErr), scalarTag);
 
-  Index<int> without(List<int> locs) =>
-      new Index(array.remove(keys.toArray(), locs), scalarTag);
+  Index<bool> without(List<int> locs) =>
+      new Index<bool>(array.remove(keys.toArray(), locs), scalarTag);
 
-  Index /*<C>*/ concat /*[B, C]*/ (
-          Index /*<B>*/ x) /*(implicit wd: Promoter[Int, B, C], mc: ST[C], oc: ORD[C])*/ =>
-      new Index(util.Concat.append /*[Int, B, C]*/ (toArray, x.toArray));
+  Index /*[C]*/ concat /*[B, C]*/ (
+          Index /*<B>*/ x) /*(implicit wd: Promoter[Boolean, B, C], mc: ST[C], oc: ORD[C])*/ =>
+      new Index(
+          util.Concat.append /*[Boolean, B, C]*/ (toArray(), x.toArray()));
 
   bool get isMonotonic => _keys2map.props.monotonic;
 
   bool get isContiguous => isUnique || _keys2map.props.contiguous;
 
-  List<int> argSort() => array.argsort(keys.toArray(), scalarTag);
+  List<int> argSort() => VecBool.argSort(keys);
 
-  Index<int> get reversed => new IndexInt(toVec().reversed);
+  Index<bool> get reversed => new IndexBool(toVec().reversed);
 
-  ReIndexer<int> join(Index<int> other, [JoinType how = JoinType.LeftJoin]) =>
+  ReIndexer<bool> join(Index<bool> other, [JoinType how = JoinType.LeftJoin]) =>
       JoinerImpl.join(this, other, how);
 
   // Intersects two indices if both have set semantics
-  ReIndexer<int> intersect(Index<int> other) {
+  ReIndexer<bool> intersect(Index<bool> other) {
     if (!this.isUnique || !other.isUnique) {
       throw new IndexException("Cannot intersect non-unique indexes");
     }
@@ -98,58 +96,44 @@ class IndexInt extends Index<int> {
   }
 
   // Unions two indices if both have set semantics
-  ReIndexer<int> union(Index<int> other) {
+  ReIndexer<bool> union(Index<bool> other) {
     if (!this.isUnique || !other.isUnique) {
       throw new IndexException("Cannot union non-unique indexes");
     }
     return JoinerImpl.join(this, other, JoinType.OuterJoin);
   }
 
-  Index<int> slice(int from, int until, [int stride = 1]) {
-    return new IndexInt(keys.slice(from, until, stride));
+  Index<bool> slice(int from, int until, [int stride = 0]) {
+    return new IndexBool(keys.slice(from, until, stride));
   }
 
   // find the first location whereby an insertion would maintain a sorted index
-  int lsearch(int t) {
+  int lsearch(bool t) {
     if (!isMonotonic) {
       throw "Index must be sorted";
     }
-
-    var fnd = locator.count(t);
-
-    if (fnd > 0) {
-      return locator.get(t);
-    } else {
-      return -(binarySearch(keys, t) + 1);
-    }
+    return locator.get(t);
   }
 
   // find the last location whereby an insertion would maintain a sorted index
-  int rsearch(int t) {
+  int rsearch(bool t) {
     if (!isMonotonic) {
       throw "Index must be sorted";
     }
-
-    var fnd = locator.count(t);
-
-    if (fnd > 0) {
-      return fnd + locator.get(t);
-    } else {
-      return -(binarySearch(keys, t) + 1);
-    }
+    return locator.get(t) + locator.count(t);
   }
 
-  Index /*<B>*/ map /*[@spec(Boolean, Int, Long, Double) B: ST: ORD]*/ (
-          dynamic f(int arg), ScalarTag sb) =>
-      new Index(VecImpl.map(keys, f, sb).toArray(), sb);
+  Index /*<B>*/ map /*[@spec(Boolean, Int, Long, Double) B:ST: ORD]*/ (
+          dynamic f(bool arg), ScalarTag scb) =>
+      new Index(VecImpl.map(keys, f, scb).toArray(), scb);
 
-  List<int> toArray_() => keys.toArray();
+  List<bool> toArray() => keys.toArray();
 
   /**Default equality does an iterative, element-wise equality check of all values. */
   @override
   bool operator ==(o) {
-    if (o is IndexInt) {
-      var rv = o as IndexInt;
+    if (o is IndexBool) {
+      var rv = o as IndexBool;
       if (identical(this, rv)) {
         return true;
       } else if (length != rv.length) {

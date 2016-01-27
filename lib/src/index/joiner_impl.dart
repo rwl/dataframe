@@ -14,7 +14,7 @@
  * limitations under the License.
  **/
 
-library saddle.index;
+library saddle.index.joiner_impl;
 
 //import scala.{ specialized => spec }
 //import org.saddle._
@@ -25,18 +25,20 @@ import 'dart:typed_data';
 
 import '../array/array.dart';
 import '../index.dart';
-import '../index/join_type.dart';
-import '../index/reindexer.dart';
+import 'join_type.dart';
+import 'reindexer.dart';
 import '../vec.dart';
 
 import 'joiner.dart';
 import 'join_helper.dart';
 
+final _JoinerImpl JoinerImpl = new _JoinerImpl();
+
 /**
  * Concrete implementation of Joiner instance which is specialized on basic
  * types.
  */
-class JoinerImpl<
+class _JoinerImpl<
     T> /*[@spec(Boolean, Int, Long, Double) T: ST: ORD]*/ extends Joiner<T> {
 //  /*private implicit*/ Option<Array<int>> wrapArray(Array<int> arr) => Some(arr);
 
@@ -665,9 +667,9 @@ class JoinerImpl<
 //
 //private[saddle] object JoinerImpl {
 
-  static indexJoin /*[@spec(Boolean, Int, Long, Double) T: ST: ORD]*/ (
-          Index<T> left, Index<T> right, JoinType how) =>
-      (new JoinerImpl<T>()).join(left, right, how);
+//  static indexJoin /*[@spec(Boolean, Int, Long, Double) T: ST: ORD]*/ (
+//          Index<T> left, Index<T> right, JoinType how) =>
+//      (new JoinerImpl<T>()).join(left, right, how);
 }
 
 // Private class to factorize indexes (ie, turn into enum representation)

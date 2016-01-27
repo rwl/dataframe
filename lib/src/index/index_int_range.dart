@@ -31,7 +31,11 @@ import '../scalar/scalar_tag_int.dart';
 import '../array/array.dart';
 import '../vec.dart';
 import '../vec/vec_int.dart';
+import '../locator/locator.dart';
 import 'join_type.dart';
+import 'index_impl.dart';
+import 'joiner_impl.dart';
+import 'reindexer.dart';
 
 /**
  * An implementation of an Index<int> which implicitly represents a bound of integers,
@@ -46,39 +50,16 @@ class IndexIntRange extends Index<int> {
     if (length < 0) {
       throw new ArgumentError("Length must be non-negative");
     }
+    locator = new _Locator(length, from, () => asArr);
   }
 
   /*@transient lazy*/ ScalarTag scalarTag = ScalarTagInt;
 
-  /*@transient private lazy*/ get asArr => array.range(from, from + length);
-  /*@transient private lazy*/ get genIdx => new Index(asArr, scalarTag);
+  /*@transient private lazy*/ List get asArr =>
+      array.range(from, from + length);
+  /*@transient private lazy*/ Index get genIdx => new Index(asArr, scalarTag);
 
-  /**
-   * Custom implementation of a Locator to serve as the backing map in a
-   * more space-efficient manner than the full blown LocatorInt implementation.
-   */
-//  protected def locator = new Locator<int> {
-//    def size = length
-//
-//    lazy val cts = {
-//      val res = Array.ofDim<int>(length)
-//      var i = 0
-//      while (i < length) {
-//        res(i) = 1
-//        i += 1
-//      }
-//      res
-//    }
-//
-//    def contains(key: Int) = key >= from && key < from + length
-//    def get(key: Int) = if (contains(key)) key - from else -1
-//    def count(key: Int) = if (contains(key)) 1 else 0
-//
-//    def put(key: Int, value: Int) { sys.error("Not supported") }
-//    def inc(key: Int) = sys.error("Not supported")
-//    def keys() = asArr
-//    def counts() = cts
-//  }
+  Locator<int> locator;
 
   /*private*/ int guardLoc(int loc) {
     if (loc < 0 || loc >= length) {
@@ -114,7 +95,7 @@ class IndexIntRange extends Index<int> {
   rsearch(int t) => math.min(math.max(0, from + t + 1), from + length);
 
   // slice at array locations, [from, until)
-  slice(int from, int until, int stride) {
+  slice(int from, int until, [int stride = 1]) {
     if (stride == 1) {
       return new IndexIntRange(math.min(length, until - from),
           math.max(this.from + math.max(from, 0), 0));
@@ -132,7 +113,7 @@ class IndexIntRange extends Index<int> {
 
   bool get isContiguous => true;
 
-  argSort() => asArr();
+  argSort() => asArr;
 
   get reversed => new Index(asArr, scalarTag).reversed;
 
@@ -145,8 +126,8 @@ class IndexIntRange extends Index<int> {
       JoinerImpl.join(this, other, how);
 
   Index /*[B]*/ map /*[@spec(Boolean, Int, Long, Double) B: ST: ORD]*/ (
-          dynamic f(int arg)) =>
-      genIdx.map(f);
+          dynamic f(int arg), ScalarTag st) =>
+      genIdx.map(f, st);
 
   /*private[saddle]*/ toArray_() => asArr;
 }
@@ -154,3 +135,38 @@ class IndexIntRange extends Index<int> {
 //object IndexIntRange {
 //  def apply(length: Int, from: Int = 0) = new IndexIntRange(length, from)
 //}
+
+/**
+ * Custom implementation of a Locator to serve as the backing map in a
+ * more space-efficient manner than the full blown LocatorInt implementation.
+ */
+class _Locator extends Locator<int> {
+  final int _length, _from;
+  final Function asArr;
+  _Locator(this._length, this._from, this.asArr) : super.internal();
+
+  int get size => _length;
+
+  List<int> _cts = null;
+  List<int> get cts {
+    if (_cts == null) {
+      var res = new List<int>(_length);
+      var i = 0;
+      while (i < _length) {
+        res[i] = 1;
+        i += 1;
+      }
+      _cts = res;
+    }
+    return _cts;
+  }
+
+  bool contains(int key) => key >= _from && key < _from + _length;
+  get(int key) => (contains(key)) ? key - _from : -1;
+  int count(int key) => contains(key) ? 1 : 0;
+
+  void put(int key, int value) => throw new UnsupportedError('put');
+  inc(int key) => throw new UnsupportedError('inc');
+  keys() => asArr();
+  counts() => cts;
+}
