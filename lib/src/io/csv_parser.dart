@@ -57,7 +57,7 @@ class CsvParser {
    *
    * @param source The csv data source to operate on
    */
-  Frame<int, int, String> parse(CsvSource source) => parse()(source);
+  Frame<int, int, String> parseSource(CsvSource source) => parse()(source);
 
   /**
    * Another parse function.
@@ -67,8 +67,11 @@ class CsvParser {
    * @param source The csv data source to operate on
    */
   Frame<int, int, String> parse(
-      [Seq<int> cols = List(),
-      CsvParams params = CsvParams()]) /*(CsvSource source)*/ {
+      [Seq<int> cols = const [], //List(),
+      CsvParams params]) /*(CsvSource source)*/ {
+    if (params == null) {
+      params = CsvParams();
+    }
     require(params.separChar != params.quoteChar,
         "Separator character and quote character cannot be the same");
 

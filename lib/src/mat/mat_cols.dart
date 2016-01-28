@@ -114,7 +114,8 @@ class MatCols<A> extends ListBase<Vec<A>> {
 //  implicit def Seq2VecSeq[A: ST](cols: Seq[Vec<A>]): MatCols<A> = new MatCols<A>(cols.toIndexedSeq)
 
   // Logic to get string widths of columns in a sequence of vectors
-//  static /*private[saddle]*/ Map<int, int> colLens(MatCols<A> cols, int numCols, int len) {
+  static /*private[saddle]*/ Map<int, int> colLens(
+      MatCols<A> cols, int numCols, int len) {
 //    var half = len ~/ 2;
 //    var maxf = (int a, String b) => a.max(b.length);
 //
@@ -132,6 +133,7 @@ class MatCols<A> extends ListBase<Vec<A>> {
 //      }
 //    }
 //  }.toMap
+  }
 }
 
 class TakeType {

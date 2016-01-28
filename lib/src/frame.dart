@@ -14,9 +14,11 @@
  * limitations under the License.
  **/
 
-library saddle;
+library saddle.frame;
 
 import 'dart:math' as math;
+
+import 'package:quiver/iterables.dart' show zip, range;
 
 import 'index.dart';
 import 'mat.dart';
@@ -26,9 +28,12 @@ import 'series.dart';
 import 'array/array.dart';
 import 'index/join_type.dart';
 import 'index/slice.dart';
+import 'index/splitter.dart';
+import 'index/stacker.dart';
 import 'index/index_int_range.dart';
-//import 'groupby/groupby.dart';
-import 'ops/ops.dart';
+import 'groupby/frame_grouper.dart';
+import 'groupby/index_grouper.dart';
+//import 'ops/ops.dart';
 //import 'stats/stats.dart';
 //import 'util/concat.dart' show Promoter;
 import 'scalar/scalar.dart';
@@ -36,6 +41,10 @@ import 'scalar/scalar_tag.dart';
 //import java.io.OutputStream
 //import org.saddle.mat.MatCols
 import 'mat/mat_cols.dart';
+import 'vec/vec_impl.dart';
+import 'vec/vec.dart' as vec;
+import 'util/util.dart' as util;
+import 'stats/frame_stats.dart';
 
 /**
  * `Frame` is an immutable container for 2D data which is indexed along both axes
@@ -170,6 +179,7 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    * The transpose of the frame (swapping the axes)
    */
 //  Frame<CX, RX, T> get T => Frame(rows(), colIx, rowIx);
+  Frame<CX, RX, T> transpose() => new Frame(rows(), colIx, rowIx);
 
   // ---------------------------------------------------------------
   // extract columns by associated key(s); ignore non-existent keys
@@ -952,7 +962,7 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    * as combine or transform, may be performed. The groups are constructed from the keys of
    * the row index, with each unique key corresponding to a group.
    */
-  groupBy() => FrameGrouper(this);
+  FrameGrouper groupBy() => new FrameGrouper.fromFrame(this);
 
   /**
    * Construct a [[org.saddle.groupby.FrameGrouper]] with which further computations, such
@@ -962,8 +972,10 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    * @param fn Function from RX => Y
    * @tparam Y Type of function codomain
    */
-  groupByFn /*[Y: ST: ORD]*/ (Y fn(RX arg)) =>
-      FrameGrouper(this.rowIx.map(fn), this);
+  FrameGrouper groupByFn /*[Y: ST: ORD]*/ (
+          /*Y*/ dynamic fn(RX arg),
+          ScalarTag sy) =>
+      new FrameGrouper(this.rowIx.map(fn, sy), this);
 
   /**
    * Construct a [[org.saddle.groupby.FrameGrouper]] with which further computations, such
@@ -972,7 +984,8 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    * @param ix Index with which to perform grouping
    * @tparam Y Type of elements of ix
    */
-  groupByIndex /*[Y: ST: ORD]*/ (Index<Y> ix) => FrameGrouper(ix, this);
+  FrameGrouper groupByIndex /*[Y: ST: ORD]*/ (Index /*<Y>*/ ix) =>
+      new FrameGrouper(ix, this);
 
   // concatenate two frames together (vertically), must have same number of columns
 
@@ -989,22 +1002,28 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    * @tparam U type of other Frame values
    * @tparam V type of resulting Frame values
    */
-  Frame<RX, CX, V> concat /*[U, V]*/ (Frame<RX, CX, U> other,
+  Frame /*<RX, CX, V>*/ concat /*[U, V]*/ (Frame /*<RX, CX, U>*/ other,
       [JoinType how =
           JoinType.OuterJoin]) /*(
     implicit pro: Promoter[T, U, V], mu: ST[U], md: ST[V])*/
   {
-    val ixc = colIx.join(other.colIx, how);
+    var ixc = colIx.join(other.colIx, how);
 
-//    val lft = ixc.lTake.map(x => values.take(x)) getOrElse values
-//    val rgt = ixc.rTake.map(x => other.values.take(x)) getOrElse other.values
+    var lft = ixc.lTake != null ? ixc.lTake.map((x) => values.take(x)) : values;
+    var rgt = ixc.rTake != null
+        ? ixc.rTake.map((x) => other.values.take(x))
+        : other.values;
 
-//    val mfn = (v: Vec[T], u: Vec[U]) => v concat u
-//    val zpp = lft zip rgt
-//    val dat = zpp.map { case (top, bot) => mfn(top, bot) }
-//    val idx = rowIx concat other.rowIx
+    mfn(Vec<T> v, Vec /*<U>*/ u) => v.concat(u);
+    var dat = zip([lft, rgt]).map((z) {
+      /*case*/
+      var top = z[0];
+      var bot = z[1];
+      return mfn(top, bot);
+    });
+    var idx = rowIx.concat(other.rowIx);
 
-    Frame(dat, idx, ixc.index);
+    return new Frame(dat, idx, ixc.index);
   }
 
   /**
@@ -1013,11 +1032,12 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    * true value.
    * @param pred Series[_, Boolean] (or Vec[Boolean] which will implicitly convert)
    */
-  Frame<RX, CX, T> where(Series<_, bool> pred) {
-    val newVals = values.zipWithIndex
+  Frame<RX, CX, T> where(Series<dynamic, bool> pred) {
+    var newVals = values.zipWithIndex
         .flatMap((z) => (pred.values(z._2)) ? Seq(z._1) : Seq.empty[Vec[T]]);
-    val newIdx = VecImpl.where(Vec(this.colIx.toArray))(pred.values.toArray);
-    Frame(newVals, rowIx, Index(newIdx));
+    var newIdx =
+        VecImpl.where(new Vec(this.colIx.toArray_()))(pred.values.toArray);
+    return new Frame(newVals, rowIx, new Index(newIdx));
   }
 
   /**
@@ -1027,32 +1047,33 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    * @param n Number to shift
    */
   Frame<RX, CX, T> shift([int n = 1]) =>
-      Frame(values.map(_.shift(n)), rowIx, colIx);
+      new Frame(values.map((v) => v.shift(n)), rowIx, colIx);
 
   /**
    * In each column, replaces all NA values for which there is a non-NA value at
    * a prior offset with the corresponding most-recent, non-NA value. See Vec.pad
    */
-  Frame<RX, CX, T> pad() => mapVec(_.pad);
+  Frame<RX, CX, T> pad() => mapVec((v) => v.pad());
 
   /**
    * Same as above, but limits the number of observations padded. See Vec.padAtMost
    */
-  Frame<RX, CX, T> padAtMost(int n) => mapVec(_.padAtMost(n));
+  Frame<RX, CX, T> padAtMost(int n) => mapVec((v) => v.padAtMost(n));
 
   /**
    * Return Frame whose columns satisfy a predicate function operating on that
    * column
    * @param pred Predicate function from Series<RX, T> => Boolean
    */
-  filter(bool pred(Series<RX, T> arg)) => where(reduce((v) => pred(v)));
+  filter(bool pred(Series<RX, T> arg)) =>
+      where(reduce((v) => pred(v), ScalarTag.stBool));
 
   /**
    * Return Frame whose columns satisfy a predicate function operating on the
    * column index
    * @param pred Predicate function from CX => Boolean
    */
-  filterIx(bool pred(CX arg)) => where(colIx.toVec.map(pred));
+  filterIx(bool pred(CX arg)) => where(colIx.toVec().map(pred));
 
   /**
    * Return Frame whose columns satisfy a predicate function operating on the
@@ -1073,9 +1094,11 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    * @param f Function Series[X, T] => B to operate on sliding window
    * @tparam B Result type of function
    */
-  Frame<RX, CX, B> rolling /*[B: ST]*/ (int winSz, B f(Series<RX, T> arg)) {
-//    val tmp = values.map { v => Series(v, rowIx).rolling(winSz, f).values }
-    Frame(tmp, rowIx.slice(winSz - 1, values.numRows), colIx);
+  Frame /*<RX, CX, B>*/ rolling /*[B: ST]*/ (
+      int winSz, /*B*/ dynamic f(Series<RX, T> arg), ScalarTag scb) {
+    var tmp =
+        values.map((v) => new Series(v, rowIx).rolling(winSz, f, scb).values);
+    return new Frame(tmp, rowIx.slice(winSz - 1, values.numRows), colIx);
   }
 
   /**
@@ -1086,14 +1109,15 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    * @param f Function taking the (sub) frame to B
    * @tparam B Result element type of Series
    */
-  Series<RX, B> rollingFtoS /*[B: ST]*/ (int winSz, B f(Frame<RX, CX, T> arg)) {
-    val buf = new List(numRows - winSz + 1);
+  Series /*<RX, B>*/ rollingFtoS /*[B: ST]*/ (
+      int winSz, /*B*/ dynamic f(Frame<RX, CX, T> arg), ScalarTag scb) {
+    var buf = new List(numRows - winSz + 1);
     var i = winSz;
     while (i <= numRows) {
-      buf[i - winSz] = f(rowSlice(i - winSz, i));
+      buf[i - winSz] = f(rowSliceRange(i - winSz, i));
       i += 1;
     }
-    Series(Vec(buf), rowIx.slice(winSz - 1, numRows));
+    return new Series(new Vec(buf, scb), rowIx.slice(winSz - 1, numRows));
   }
 
   // ----------------------------------------
@@ -1117,10 +1141,14 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    */
   Frame<RX, int, T> joinS(Series<RX, T> other,
       [JoinType how = JoinType.LeftJoin]) {
-    val indexer = rowIx.join(other.index, how);
-//    val lft = indexer.lTake.map { loc => values.map(_.take(loc)) } getOrElse values
-//    val rgt = indexer.rTake.map { loc => other.values.take(loc) } getOrElse other.values
-//    Frame(lft :+ rgt, indexer.index, IndexIntRange(colIx.length + 1))
+    var indexer = rowIx.join(other.index, how);
+    var lft = indexer.lTake != null
+        ? values.map((v) => v.take(indexer.lTake))
+        : values;
+    var rgt =
+        indexer.rTake != null ? other.values.take(indexer.rTake) : other.values;
+    return new Frame(
+        lft /*:*/ + rgt, indexer.index, new IndexIntRange(colIx.length + 1));
   }
 
   /**
@@ -1129,9 +1157,9 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    */
   Frame<RX, CX, T> joinSPreserveColIx(Series<RX, T> other,
       [JoinType how = JoinType.LeftJoin, CX newColIx]) {
-    val resultingFrame = joinS(other, how);
-    val newColIndex = colIx.concat(Index(newColIx));
-    resultingFrame.setColIndex(newColIndex);
+    var resultingFrame = joinS(other, how);
+    var newColIndex = colIx.concat(new Index([newColIx], colIx.scalarTag));
+    return resultingFrame.setColIndex(newColIndex);
   }
 
   /**
@@ -1150,12 +1178,17 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    * @param other Frame to join with
    * @param how How to perform the join
    */
-  Frame<RX, int, T> join(Frame<RX, _, T> other,
+  Frame<RX, int, T> join(Frame<RX, dynamic, T> other,
       [JoinType how = JoinType.LeftJoin]) {
-    val indexer = rowIx.join(other.rowIx, how);
-//    val lft = indexer.lTake.map { loc => values.map(_.take(loc))} getOrElse values
-//    val rgt = indexer.rTake.map { loc => other.values.map(_.take(loc))} getOrElse other.values
-//    Frame(lft ++ rgt, indexer.index, IndexIntRange(colIx.length + other.colIx.length))
+    var indexer = rowIx.join(other.rowIx, how);
+    var lft = indexer.lTake != null
+        ? values.map((v) => v.take(indexer.lTake))
+        : values;
+    var rgt = indexer.rTake != null
+        ? other.values.map((v) => v.take(indexer.rTake))
+        : other.values;
+    return new Frame(lft..addAll(rgt), indexer.index,
+        new IndexIntRange(colIx.length + other.colIx.length));
   }
 
   /**
@@ -1163,8 +1196,8 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    */
   Frame<RX, CX, T> joinPreserveColIx(Frame<RX, CX, T> other,
       [JoinType how = JoinType.LeftJoin]) {
-    val resultingFrame = join(other, how);
-    val newColIndex = colIx.concat(other.colIx);
+    var resultingFrame = join(other, how);
+    var newColIndex = colIx.concat(other.colIx);
     resultingFrame.setColIndex(newColIndex);
   }
 
@@ -1172,45 +1205,54 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    * Same as joinS, but the values of Series to join with may be of type Any, so that the
    * resulting Frame may be heterogeneous in its column types.
    */
-  Frame<RX, int, Any> joinAnyS(Series<RX, _> other,
+  Frame<RX, int, dynamic> joinAnyS(Series<RX, dynamic> other,
       [JoinType how = JoinType.LeftJoin]) {
-    val indexer = rowIx.join(other.index, how);
-//    val lft = indexer.lTake.map { loc => values.map(_.take(loc)) } getOrElse values
-//    val rgt = indexer.rTake.map { loc => other.values.take(loc) } getOrElse other.values
-//    Panel(lft :+ rgt, indexer.index, IndexIntRange(colIx.length + 1))
+    var indexer = rowIx.join(other.index, how);
+    var lft = indexer.lTake != null
+        ? values.map((v) => v.take(indexer.lTake))
+        : values;
+    var rgt =
+        indexer.rTake != null ? other.values.take(indexer.rTake) : other.values;
+    return Panel.vecsIndex(
+        lft /*:*/ + rgt, indexer.index, new IndexIntRange(colIx.length + 1));
   }
 
   /**
    * Same as `joinAnyS`, but preserve the column index, adding the specified index value,
    * `newColIx` as an index for the `other` Series.
    */
-  Frame<RX, CX, Any> joinAnySPreserveColIx(Series<RX, _> other,
+  Frame<RX, CX, dynamic> joinAnySPreserveColIx(Series<RX, dynamic> other,
       [JoinType how = JoinType.LeftJoin, CX newColIx]) {
-    val resultingFrame = joinAnyS(other, how);
-    val newColIndex = colIx.concat(Index(newColIx));
-    resultingFrame.setColIndex(newColIndex);
+    var resultingFrame = joinAnyS(other, how);
+    var newColIndex = colIx.concat(new Index([newColIx], colIx.scalarTag));
+    return resultingFrame.setColIndex(newColIndex);
   }
 
   /**
    * Same as join, but the values of Frame to join with may be of type Any, so that the
    * resulting Frame may be heterogeneous in its column types.
    */
-  Frame<RX, int, Any> joinAny(Frame<RX, _, _> other,
+  Frame<RX, int, dynamic> joinAny(Frame<RX, dynamic, dynamic> other,
       [JoinType how = JoinType.LeftJoin]) {
-    val indexer = rowIx.join(other.rowIx, how);
-//    val lft = indexer.lTake.map { loc => values.map(_.take(loc))} getOrElse values
-//    val rgt = indexer.rTake.map { loc => other.values.map(_.take(loc))} getOrElse other.values
-//    Panel(lft ++ rgt, indexer.index, IndexIntRange(colIx.length + other.colIx.length))
+    var indexer = rowIx.join(other.rowIx, how);
+    var lft = indexer.lTake != null
+        ? values.map((v) => v.take(indexer.lTake))
+        : values;
+    var rgt = indexer.rTake != null
+        ? other.values.map((v) => v.take(indexer.rTake))
+        : other.values;
+    return Panel.vecsIndex(lft..addAll(rgt), indexer.index,
+        new IndexIntRange(colIx.length + other.colIx.length));
   }
 
   /**
    *  Same as `joinAny`, but preserves column index
    */
-  Frame<RX, CX, Any> joinAnyPreserveColIx(Frame<RX, CX, _> other,
+  Frame<RX, CX, dynamic> joinAnyPreserveColIx(Frame<RX, CX, dynamic> other,
       [JoinType how = JoinType.LeftJoin]) {
-    val resultingFrame = joinAny(other, how);
-    val newColIndex = colIx.concat(other.colIx);
-    resultingFrame.setColIndex(newColIndex);
+    var resultingFrame = joinAny(other, how);
+    var newColIndex = colIx.concat(other.colIx);
+    return resultingFrame.setColIndex(newColIndex);
   }
 
   /**
@@ -1221,31 +1263,27 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    * @param rhow How to perform the join on the row indexes
    * @param chow How to perform the join on the col indexes
    */
-  /*(Frame<RX, CX, T>, Frame<RX, CX, U>)*/ align /*[U: ST]*/ (
-      Frame<RX, CX, U> other,
+  Aligned /*(Frame<RX, CX, T>, Frame<RX, CX, U>)*/ align /*[U: ST]*/ (
+      Frame /*<RX, CX, U>*/ other,
       [JoinType rhow = JoinType.OuterJoin,
       JoinType chow = JoinType.OuterJoin]) {
-    val rJoin = rowIx.join(other.rowIx, rhow);
-    val cJoin = colIx.join(other.colIx, chow);
+    var rJoin = rowIx.join(other.rowIx, rhow);
+    var cJoin = colIx.join(other.colIx, chow);
 
     MatCols /*[T]*/ lvals =
-        cJoin.lTake.map((locs) => values.take(locs)).getOrElse(values);
-    MatCols /*[U]*/ rvals = cJoin.rTake
-        .map((locs) => other.values.take(locs))
-        .getOrElse(other.values);
+        cJoin.lTake != null ? values.take(cJoin.lTake) : values;
+    MatCols /*[U]*/ rvals =
+        cJoin.rTake != null ? other.values.take(cJoin.rTake) : other.values;
 
-//    val vecs = for (i <- 0 until lvals.length) yield {
-//      val lvec: Vec[T] = rJoin.lTake.map(locs => lvals(i).take(locs)).getOrElse(lvals(i))
-//      val rvec: Vec[U] = rJoin.rTake.map(locs => rvals(i).take(locs)).getOrElse(rvals(i))
-//      (lvec, rvec)
-//    }
+    var lvecs = range(lvals.length).map((i) {
+      return rJoin.lTake != null ? lvals[i].take(rJoin.lTake) : lvals[i];
+    });
+    var rvecs = range(rvals.length).map((i) {
+      return rJoin.rTake != null ? rvals[i].take(rJoin.rTake) : rvals[i];
+    });
 
-    var lvecs, rvecs = vecs.unzip;
-
-    [
-      Frame(lvecs, rJoin.index, cJoin.index),
-      Frame(rvecs, rJoin.index, cJoin.index)
-    ];
+    return new Aligned._(new Frame(lvecs, rJoin.index, cJoin.index),
+        new Frame(rvecs, rJoin.index, cJoin.index));
   }
 
   // ------------------------------------------------
@@ -1254,7 +1292,7 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
   /**
    * Drop all columns from the Frame which have nothing but NA values.
    */
-  Frame<RX, CX, T> squeeze() => filter((s) => !VecImpl.isAllNA(s.toVec));
+  Frame<RX, CX, T> squeeze() => filter((s) => !VecImpl.isAllNA(s.toVec()));
 
   /**
    * Melt stacks the row index of arity N with the column index of arity M to form a result index
@@ -1282,8 +1320,8 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    * @param melter Implicit evidence for a Melter for the two indexes
    * @tparam W Output type (tuple of arity N + M)
    */
-  Series<W, T> melt /*[W]*/ (/*implicit*/ Melter<RX, CX, W> melter) {
-    val ix = Array.ofDim[W](numRows * numCols)(melter.tag);
+  Series /*<W, T>*/ melt /*[W]*/ (/*implicit*/ Melter<RX, CX, W> melter) {
+    var ix = new List.generate(numRows * numCols, (_) => melter.tag);
 
     var k = 0;
     var i = 0;
@@ -1297,10 +1335,10 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
       i += 1;
     }
 
-    /*implicit*/ val ord = melter.ord;
-    /*implicit*/ val tag = melter.tag;
+    /*implicit*/ var ord = melter.ord;
+    /*implicit*/ var tag = melter.tag;
 
-    new Series<W, T>(toMat.toVec, Index(ix));
+    return new Series /*<W, T>*/ (toMat().toVec(), new Index(ix, tag));
   }
 
   /**
@@ -1316,14 +1354,14 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    * @tparam O2 The 1-arity type of split-out index C
    * @tparam V The type of the stacked row index
    */
-  Frame<V, O1, T> stack /*[O1, O2, V]*/ (
-      /*implicit*/ Splitter<CX, O1, O2> splt,
-      Stacker<RX, O2, V> stkr,
-      ORD<O1> ord1,
-      ORD<O2> ord2,
-      ST<O1> m1,
-      ST<O2> m2) {
-    T.unstack.T;
+  Frame /*<V, O1, T>*/ stack /*[O1, O2, V]*/ (
+      /*implicit*/ Splitter /*<CX, O1, O2>*/ splt,
+      Stacker /*<RX, O2, V>*/ stkr,
+      /*ORD<O1>*/ ord1,
+      /*ORD<O2>*/ ord2,
+      /*ST<O1>*/ m1,
+      /*ST<O2>*/ m2) {
+    return transpose().unstack(splt, stkr, ord1, ord2, m1, m2).transpose();
   }
 
   /**
@@ -1361,15 +1399,15 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    * @tparam O2 The 1-arity type of split-out index R
    * @tparam V The type of the stacked col index
    */
-  Frame<O1, V, T> unstack /*[O1, O2, V]*/ (
-      /*implicit*/ Splitter<RX, O1, O2> splt,
-      Stacker<CX, O2, V> stkr,
-      ORD<O1> ord1,
-      ORD<O2> ord2,
-      ST<O1> m1,
-      ST<O2> m2) {
-    /*implicit*/ def ordV = stkr.ord;
-    /*implicit*/ def clmV = stkr.tag;
+  Frame /*<O1, V, T>*/ unstack /*[O1, O2, V]*/ (
+      /*implicit*/ Splitter /*<RX, O1, O2>*/ splt,
+      Stacker /*<CX, O2, V>*/ stkr,
+      /*ORD<O1>*/ ord1,
+      /*ORD<O2>*/ ord2,
+      /*ST<O1>*/ m1,
+      /*ST<O2>*/ m2) {
+    /*implicit*/ ordV() => stkr.ord;
+    /*implicit*/ clmV() => stkr.tag;
 
     var lft,
         rgt = splt(rowIx); // lft = row index w/o pivot level; rgt = pivot level
@@ -1379,7 +1417,7 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
     var cix = stkr(
         colIx, uix); // Final col index (colIx stacked w/unique pivot labels)
 
-    var grps = IndexGrouper(rgt, sorted: false)
+    var grps = new IndexGrouper(rgt, false)
         .groups; // Group by pivot label. Each unique label will get its
     //   own column in the final frame.
     if (values.length > 0) {
@@ -1389,17 +1427,17 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
 
       var result = new List<Vec<T>>(cix.length); // accumulates result columns
 
-      for (/*(_,*/ taker in grps) {
+      for (var /*(_,*/ taker in grps) {
         // For each pivot label grouping,
-        val gIdx = lft.take(taker); //   use group's (lft) row index labels
-        val ixer = rix.join(gIdx); //   to compute map to final (rix) locations;
+        var gIdx = lft.take(taker); //   use group's (lft) row index labels
+        var ixer = rix.join(gIdx); //   to compute map to final (rix) locations;
 
-        for (currVec in values) {
+        for (var currVec in values) {
           // For each column vec of original frame
-          val vals = currVec.take(
+          var vals = currVec.take(
               taker); //   take values corresponding to current pivot label
-          val v = ixer.rTake
-              .map(vals.take(_))
+          var v = ixer.rTake
+              .map((a) => vals.take(a))
               .getOrElse(vals); //   map values to be in correspondence to rix
           result[loc] = v; //   and save vec in array.
 
@@ -1411,9 +1449,9 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
         }
       }
 
-      new Frame<O1, V, T>(result, rix, cix);
+      return new Frame /*<O1, V, T>*/ (result, rix, cix);
     } else {
-      new Frame.empty<O1, V, T>();
+      return new Frame.empty /*<O1, V, T>*/ ();
     }
   }
 
@@ -1422,13 +1460,14 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    * information)
    */
   Mat<T> toMat() {
-    val st = implicitly[ST[T]];
+    var st = values.scalarTag; //implicitly[ST[T]];
 //    synchronized {
     if (cachedMat.isEmpty) {
-      val m = Mat(values.numCols, values.numRows, st.concat(values)).T;
-      withMat(Some(m));
+      var m = new Mat(
+          values.numCols, values.numRows, st.concat(values).toArray(), st).T;
+      withMat(m); //Some(m));
     }
-    cachedMat.get;
+    return cachedMat; //.get;
 //    }
   }
 
@@ -1438,124 +1477,131 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
   /**
    * See mask; operates row-wise
    */
-  Frame<RX, CX, T> rmaskFn(bool f(T arg)) => T.mask(f).T;
+  Frame<RX, CX, T> rmaskFn(bool f(T arg)) => transpose().maskFn(f).transpose();
 
   /**
    * See mask; operates row-wise
    */
-  Frame<RX, CX, T> rmask(Vec<bool> b) => T.mask(b).T;
+  Frame<RX, CX, T> rmask(Vec<bool> b) => transpose().mask(b).transpose();
 
   /**
    * See mapVec; operates row-wise
    */
-  rmapVec /*[U: ST]*/ (Vec<U> f(Vec<T> arg)) => T.mapVec(f).T;
+  rmapVec /*[U: ST]*/ (Vec /*<U>*/ f(Vec<T> arg)) =>
+      transpose().mapVec(f).transpose();
 
   /**
    * See reduce; operates row-wise
    */
-  Series<RX, U> rreduce /*[U: ST]*/ (U f(Series<CX, T> arg)) => T.reduce(f);
+  Series /*<RX, U>*/ rreduce /*[U: ST]*/ (
+          /*U*/ dynamic f(Series<CX, T> arg),
+          ScalarTag stu) =>
+      transpose().reduce(f, stu);
 
   /**
    * See transform; operates row-wise
    */
-  Frame<RX, SX, U> rtransform /*[U: ST, SX: ST: ORD]*/ (
-          Series<SX, U> f(Series<CX, T> arg)) =>
-      T.transform(f).T;
+  Frame /*<RX, SX, U>*/ rtransform /*[U: ST, SX: ST: ORD]*/ (
+          Series /*<SX, U>*/ f(Series<CX, T> arg)) =>
+      transpose().transform(f).transpose();
 
   /**
    * See concat; operates row-wise
    */
-  rconcat /*[U, V]*/ (Frame<RX, CX, U> other,
+  rconcat /*[U, V]*/ (Frame /*<RX, CX, U>*/ other,
           [JoinType how =
               JoinType.OuterJoin]) /*(
     implicit wd1: Promoter[T, U, V], mu: ST[U], md: ST[V])*/
       =>
-      T.concat(other.T, how).T;
+      transpose().concat(other.transpose(), how).transpose();
 
   /**
    * See where; operates row-wise
    */
-  Frame<RX, CX, T> rwhere(Series<_, bool> pred) {
-    val predv = pred.values;
-    new Frame(new MatCols(values.map((v) => v.where(predv))),
-        Index(rowIx.toVec.where(predv)), colIx);
+  Frame<RX, CX, T> rwhere(Series<dynamic, bool> pred) {
+    var predv = pred.values;
+    return new Frame(new MatCols(values.map((v) => v.where(predv))),
+        new Index(rowIx.toVec().where(predv)), colIx);
   }
 
   /**
    * See shift; operates col-wise
    */
-  Frame<RX, CX, T> cshift([int n = 1]) => T.shift(n).T;
+  Frame<RX, CX, T> cshift([int n = 1]) => transpose().shift(n).transpose();
 
   /**
    * See filter; operates row-wise
    */
-  rfilter(bool pred(Series<CX, T> arg)) => rwhere(rreduce((v) => pred(v)));
+  rfilter(bool pred(Series<CX, T> arg)) =>
+      rwhere(rreduce((v) => pred(v), ScalarTag.stBool));
 
   /**
    * See filterIx; operates row-wise
    */
-  rfilterIx(bool pred(RX arg)) => rwhere(rowIx.toVec.map(pred));
+  rfilterIx(bool pred(RX arg)) =>
+      rwhere(rowIx.toVec().map(pred, ScalarTag.stBool));
 
   /**
    * See filterAt; operates row-wise
    */
-  rfilterAt(bool pred(int arg)) => rwhere(vec.range(0, numRows).map(pred));
+  rfilterAt(bool pred(int arg)) =>
+      rwhere(vec.range(0, numRows).map(pred, ScalarTag.stBool));
 
   /**
    * See joinS; operates row-wise
    */
   Frame<int, CX, T> rjoinS(Series<CX, T> other,
           [JoinType how = JoinType.LeftJoin]) =>
-      T.joinS(other, how).T;
+      transpose().joinS(other, how).transpose();
 
   /**
    * See joinSPreserveColIx; operates row-wise
    */
   Frame<RX, CX, T> rjoinSPreserveRowIx(Series<CX, T> other,
           [JoinType how = JoinType.LeftJoin, RX newRowIx]) =>
-      T.joinSPreserveColIx(other, how, newRowIx).T;
+      transpose().joinSPreserveColIx(other, how, newRowIx).transpose();
 
   /**
    * See join; operates row-wise
    */
-  Frame<int, CX, T> rjoin(Frame<_, CX, T> other,
+  Frame<int, CX, T> rjoin(Frame<dynamic, CX, T> other,
           [JoinType how = JoinType.LeftJoin]) =>
-      T.join(other.T, how).T;
+      transpose().join(other.transpose(), how).transpose();
 
   /**
    * See joinPreserveColIx; operates row-wise
    */
   Frame<RX, CX, T> rjoinPreserveRowIx(Frame<RX, CX, T> other,
           [JoinType how = JoinType.LeftJoin]) =>
-      T.joinPreserveColIx(other.T, how).T;
+      transpose().joinPreserveColIx(other.transpose(), how).transpose();
 
   /**
    * See joinAnyS; operates row-wise
    */
-  Frame<int, CX, Any> rjoinAnyS(Series<CX, _> other,
+  Frame<int, CX, dynamic> rjoinAnyS(Series<CX, dynamic> other,
           [JoinType how = JoinType.LeftJoin]) =>
-      T.joinAnyS(other, how).T;
+      transpose().joinAnyS(other, how).transpose();
 
   /**
    * See joinAnySPreserveColIx; operates row-wise
    */
-  Frame<RX, CX, Any> rjoinAnySPreserveRowIx(Series<CX, _> other,
+  Frame<RX, CX, dynamic> rjoinAnySPreserveRowIx(Series<CX, dynamic> other,
           [JoinType how = JoinType.LeftJoin, RX newRowIx]) =>
-      T.joinAnySPreserveColIx(other, how, newRowIx).T;
+      transpose().joinAnySPreserveColIx(other, how, newRowIx).transpose();
 
   /**
    * See joinAny; operates row-wise
    */
-  Frame<int, CX, Any> rjoinAny(Frame<_, CX, _> other,
+  Frame<int, CX, dynamic> rjoinAny(Frame<dynamic, CX, dynamic> other,
           [JoinType how = JoinType.LeftJoin]) =>
-      T.joinAny(other.T, how).T;
+      transpose().joinAny(other.transpose(), how).transpose();
 
   /**
    * See joinAnyPreserveColIx; operates row-wise
    */
-  Frame<RX, CX, Any> rjoinAnyPreserveRowIx(Frame<RX, CX, _> other,
+  Frame<RX, CX, dynamic> rjoinAnyPreserveRowIx(Frame<RX, CX, dynamic> other,
           [JoinType how = JoinType.LeftJoin]) =>
-      T.joinAnyPreserveColIx(other.T, how).T;
+      transpose().joinAnyPreserveColIx(other.transpose(), how).transpose();
 
   /**
    * See dropNA; operates row-wise
@@ -1565,7 +1611,7 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
   /**
    * See squeeze; operates row-wise
    */
-  Frame<RX, CX, T> rsqueeze() => rfilter((s) => !VecImpl.isAllNA(s.toVec));
+  Frame<RX, CX, T> rsqueeze() => rfilter((s) => !VecImpl.isAllNA(s.toVec()));
 
   // todo: describe
 
@@ -1576,43 +1622,47 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    * Produce an indexed sequence of pairs of row index value and
    * row Series
    */
-  IndexedSeq /*[(RX, Series<CX, T>)]*/ toRowSeq() {
-//    for (i <- array.range(0, numRows)) yield (rowIx.raw(i), rowAt(i));
+  Iterable<FramePair<RX, CX, T>> /*[(RX, Series<CX, T>)]*/ toRowSeq() {
+    return array.range(0, numRows).map((i) {
+      return new FramePair._(rowIx.raw(i), rowAt(i));
+    });
   }
 
   /**
    * Produce an indexed sequence of pairs of column index value and
    * column Series.
    */
-  IndexedSeq /*[(CX, Series<RX, T>)]*/ toColSeq() {
-//    for (i <- array.range(0, numCols)) yield (colIx.raw(i), colAt(i));
+  Iterable<FramePair<CX, RX, T>> /*[(CX, Series<RX, T>)]*/ toColSeq() {
+    return array.range(0, numCols).map((i) {
+      return new FramePair._(colIx.raw(i), colAt(i));
+    });
   }
 
   /**
    * Produce an indexed sequence of triples of values in the Frame
    * in row-major order.
    */
-  IndexedSeq /*[(RX, CX, T)]*/ toSeq() {
-//    (Range(0, numRows) zip rowIx.toSeq).flatMap { case(i, rx) =>
-//      rowAt(i).toSeq.map { case (cx, t) =>
-//        (rx, cx, t)
-//      }
-//    }
+  Iterable<FrameTriple<RX, CX, T>> /*[(RX, CX, T)]*/ toSeq() {
+    return zip([range(0, numRows), rowIx.toSeq()]).flatMap((i, rx) {
+      return rowAt(i).toSeq().map((cx, t) {
+        return new FrameTriple._(rx, cx, t);
+      });
+    });
   }
 
   // ------------------------------------------------------
   // internal contiguous caching of row data for efficiency
 
-  /*private*/ Frame<RX, CX, T> withMat(Option<Mat<T>> m) {
+  /*private*/ Frame<RX, CX, T> withMat(/*Option<*/ Mat<T> m) {
     cachedMat = m;
-    this;
+    return this;
   }
 
   /*private*/ MatCols<T> rows() {
-    if (cachedRows.isEmpty) {
-      cachedRows = Some(toMat.rows());
+    if (cachedRows == null) {
+      cachedRows = toMat().rows();
     }
-    cachedRows.get;
+    return cachedRows; //.get;
   }
 
   // --------------------------------------
@@ -1627,86 +1677,97 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    * @param ncols Max number of rows to include
    */
   String stringify([int nrows = 10, int ncols = 10]) {
-    val buf = new StringBuffer();
+    var buf = new StringBuffer();
 
     if (numCols == 0 || numRows == 0) {
-      buf.append("Empty Frame");
+      buf.write("Empty Frame");
     } else {
-      buf.append("[%d x %d]\n".format(numRows, numCols));
+      buf.write("[$numRows x $numCols]\n");
 
-      val rhalf = nrows / 2;
+      var rhalf = nrows ~/ 2;
 
-//      val maxf = (a: List[Int], b: List[String]) => (a zip b).map(v => math.max(v._1, v._2.length))
+      maxf(List<int> a, List<String> b) =>
+          zip([a, b]).map((v) => math.max(v[0], v[1].length));
 
       // calc row index width
-      val rsca = rowIx.scalarTag;
-      val rarr = rowIx.toArray;
-      val rinit = rsca.strList(rarr(0)).map(_.length);
-      val rlens =
-          util.grab(rarr, rhalf).map(rsca.strList(_)).foldLeft(rinit)(maxf);
-      val maxrl = rlens.sum + (rlens.length - 1);
+      var rsca = rowIx.scalarTag;
+      var rarr = rowIx.toArray_();
+      var rinit = rsca.strList(rarr(0)).map((s) => s.length);
+      var rlens = util.grab(rarr, rhalf).map(rsca.strList).fold(rinit, maxf);
+      var maxrl = rlens.sum + (rlens.length - 1);
 
       // calc each col str width
-      val clens = MatCols.colLens(values, numCols, ncols);
+      var clens = MatCols.colLens(values, numCols, ncols);
 
-      val csca = colIx.scalarTag;
-//      clen(int c) => clens(c) max {
-//        val lst = csca.strList(colIx.raw(c)).map(_.length)
-//        if (lst.length > 0) lst.max else 0
-//      }
+      var csca = colIx.scalarTag;
+      clen(int c) => math.max(
+          clens[c],
+          () {
+            var lst = csca.strList(colIx.raw(c)).map((x) => x.length);
+            return lst.length > 0 ? lst.max() : 0;
+          }());
 
-//      var prevColMask = clens.map((x) => (x._1, false));   // recalls whether we printed a column's label at level L-1
-      var prevColLabel = ""; // recalls previous column's label at level L
+      var prevColMask = clens.keys.map((x) => [
+            x /*._1*/,
+            false
+          ]); // recalls whether we printed a column's label at level L-1
+      String prevColLabel = ""; // recalls previous column's label at level L
 
       // build columns header
-//      createColHeader(int l) => (int c) => {
-//        val labs = csca.strList(colIx.raw(c));
-//        val currLab = labs(l);
-//
-//        val fmt = "%" + clen(c) + "s ";
-//        val res = if (l == labs.length - 1 || currLab != prevColLabel || prevColMask.get(c).getOrElse(false)) {
-//          prevColMask = prevColMask.updated(c, true)
-//          currLab.formatted(fmt)
-//        }
-//        else {
-//          prevColMask = prevColMask.updated(c, false)
-//          "".formatted(fmt)
-//        }
-//        prevColLabel = currLab
-//        res
-//      }
+      createColHeader(int l) => (int c) {
+            var labs = csca.strList(colIx.raw(c));
+            var currLab = labs(l);
+
+            var fmt = "%" + clen(c) + "s ";
+            var res;
+            if (l == labs.length - 1 ||
+                currLab != prevColLabel ||
+                prevColMask.get(c).getOrElse(false)) {
+              prevColMask = prevColMask.updated(c, true);
+              res = currLab.formatted(fmt);
+            } else {
+              prevColMask = prevColMask.updated(c, false);
+              res = "".formatted(fmt);
+            }
+            prevColLabel = currLab;
+            return res;
+          };
 
       colBreakStr() {
         prevColLabel = "";
-        " " * 5;
+        return " " * 5;
       }
 
       var spacer = " " * (maxrl + 4);
 
-      var sz = colIx.scalarTag.strList(colIx.raw(0)).size;
-      for (i in range(sz)) {
-        buf.append(spacer);
-        buf.append(
+      var sz = colIx.scalarTag.strList(colIx.raw(0)).length;
+      for (var i in range(sz)) {
+        buf.write(spacer);
+        buf.write(
             util.buildStr(ncols, numCols, createColHeader(i), colBreakStr));
-        buf.append("\n");
+        buf.write("\n");
       }
 
-      def createColDivide(int c) => "-" * clen(c) + " ";
+      createColDivide(int c) => "-" * clen(c) + " ";
 
-      buf.append(spacer);
-      buf.append(util.buildStr(ncols, numCols, createColDivide));
-      buf.append("\n");
+      buf.write(spacer);
+      buf.write(util.buildStr(ncols, numCols, createColDivide));
+      buf.write("\n");
 
       // for building row labels
 //      def enumZip[A, B](a: List[A], b: List[B]): List[(Int, A, B)] =
 //        for ( v <- (a.zipWithIndex zip b) ) yield (v._1._2, v._1._1, v._2)
 
-      val prevRowLabels =
-          Array.fill(rowIx.scalarTag.strList(rowIx.raw(0)).size)("");
-//      resetRowLabels(int k) { for (i <- k until prevRowLabels.length) prevRowLabels(i) = "" }
+      var prevRowLabels = new List.generate(
+          rowIx.scalarTag.strList(rowIx.raw(0)).length, (_) => "");
+      resetRowLabels(int k) {
+        for (var i in range(k, prevRowLabels.length)) {
+          prevRowLabels[i] = "";
+        }
+      }
 
       createIx(int r) {
-        val vls = rsca.strList(rowIx.raw(r));
+        var vls = rsca.strList(rowIx.raw(r));
 //        val lst = for ( (i, l, v) <- enumZip(rlens, vls)) yield {
 //          val fmt = "%" + l + "s"
 //          val res = if (i == vls.length - 1 || prevRowLabels(i) != v) {
@@ -1716,24 +1777,28 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
 //          prevRowLabels(i) = v
 //          res
 //        }
-        lst.mkString(" ");
+        return lst.join(" ");
       }
 
       // for building frame entries
-      createVals(int r) {
-//        val elem = (col: Int) => "%" + clen(col) + "s " format values(col).scalarTag.show(values(r, col))
-        util.buildStr(ncols, numCols, elem) + "\n";
+      String createVals(int r) {
+        var elem = (int col) => values[col]
+            .scalarTag
+            .show(values.apply_(r, col))
+            .padLeft(clen(col));
+        return util.buildStr(ncols, numCols, elem) + "\n";
       }
 
-      rowBreakStr() {
+      String rowBreakStr() {
         resetRowLabels(0);
-        "...\n";
+        return "...\n";
       }
 
       // now build row strings
-//      buf.append(util.buildStr(nrows, numRows, (r: Int) => createIx(r) + " -> " + createVals(r), rowBreakStr) )
+      buf.write(util.buildStr(nrows, numRows,
+          (int r) => createIx(r) + " -> " + createVals(r), rowBreakStr));
     }
-    buf.toString();
+    return buf.toString();
   }
 
   /**
@@ -1747,14 +1812,22 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
 
   @override
   int hashCode() =>
-      values.hashCode() * 31 * 31 + rowIx.hashCode() * 31 + colIx.hashCode();
+      values.hashCode * 31 * 31 + rowIx.hashCode * 31 + colIx.hashCode;
 
   @override
-  bool equals(other) {
-//    other match {
-//      case f: Frame[_, _, _] => (this eq f) || rowIx == f.rowIx && colIx == f.colIx && values == f.values
-//      case _ => false
-//    }
+  bool operator ==(other) {
+    if (other is Frame) {
+      var f = other as Frame;
+      if (identical(this, f)) {
+        return true;
+      } else if (rowIx == f.rowIx && colIx == f.colIx && values == f.values) {
+        return true;
+      } else {
+        return false;
+      }
+    } else {
+      return false;
+    }
   }
 //}
 
@@ -1777,9 +1850,13 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    * @tparam CX Type of col keys
    * @tparam T Type of values
    */
-  factory Frame.empty() /*[RX: ST: ORD, CX: ST: ORD, T: ST]: Frame<RX, CX, T>*/ =>
-      new Frame<RX, CX, T>(
-          new MatCols.empty<T>(), new Index.empty<RX>(), new Index.empty<CX>());
+  factory Frame.empty(
+          ScalarTag<RX> srx,
+          ScalarTag<CX> scx,
+          ScalarTag<
+              T> st) /*[RX: ST: ORD, CX: ST: ORD, T: ST]: Frame<RX, CX, T>*/ =>
+      new Frame<RX, CX, T>(new MatCols<T>.empty(st), new Index<RX>.empty(srx),
+          new Index<CX>.empty(scx));
 
   // --------------------------------
   // Construct using sequence of vectors
@@ -1787,13 +1864,15 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
   /**
    * Factory method to create a Frame from a sequence of Vec objects
    */
-  /*Frame<int, int, T>*/ factory Frame.seq(Iterable<Vec<T>> values) {
+  /*Frame<int, int, T>*/ factory Frame.fromVecs(
+      Iterable<Vec<T>> values, ScalarTag<T> st) {
     if (values.isEmpty) {
-      return empty(); //[Int, Int, T]
+      return new Frame.empty(
+          ScalarTag.stInt, ScalarTag.stInt, st); //[Int, Int, T]
     } else {
-      val asIdxSeq = values.toIndexedSeq();
-      apply(asIdxSeq, IndexIntRange(asIdxSeq(0).length),
-          IndexIntRange(asIdxSeq.length));
+      var asIdxSeq = values; //.toIndexedSeq();
+      return new Frame(asIdxSeq, new IndexIntRange(asIdxSeq(0).length),
+          new IndexIntRange(asIdxSeq.length));
     }
   }
 
@@ -1801,12 +1880,14 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    * Factory method to create a Frame from a sequence of Vec objects,
    * a row index, and a column index.
    */
-  factory Frame.vecsIndex(
-      Seq<Vec<T>> values, Index<RX> rowIx, Index<CX> colIx) {
+  factory Frame.vecsIndex(Iterable<Vec<T>> values, Index<RX> rowIx,
+      Index<CX> colIx, ScalarTag<T> st) {
     if (values.isEmpty) {
-      return empty(); //[RX, CX, T];
+      return new Frame.empty(
+          rowIx.scalarTag, colIx.scalarTag, st); //[RX, CX, T];
     } else {
-//      return new Frame<RX, CX, T>(MatCols[T](values : _*), rowIx, colIx)
+      return new Frame<RX, CX, T>(
+          new MatCols<T>(values /*: _**/, st), rowIx, colIx);
     }
   }
 
@@ -1815,12 +1896,13 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    * and a column index.
    */
   factory Frame.column /*[CX: ST: ORD, T: ST]*/ (
-      Seq<Vec<T>> values, Index<CX> colIx) {
+      Iterable<Vec<T>> values, Index<CX> colIx, ScalarTag<T> st) {
     if (values.isEmpty) {
-      return empty(); //[Int, CX, T];
+      return new Frame.empty(
+          ScalarTag.stInt, colIx.scalarTag, st); //[Int, CX, T];
     } else {
-      val asIdxSeq = values.toIndexedSeq();
-      apply(asIdxSeq, IndexIntRange(asIdxSeq(0).length), colIx);
+      var asIdxSeq = values; //.toIndexedSeq();
+      return new Frame(asIdxSeq, new IndexIntRange(asIdxSeq(0).length), colIx);
     }
   }
 
@@ -1849,19 +1931,23 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    * of the result are the outer join of the indexes of the series provided.
    */
   factory Frame.series /*[RX: ST: ORD, T: ST: ID]*/ (
-      Iterable<Series<RX, T>> values) {
-    val asIdxSeq = values.toIndexedSeq;
+      Iterable<Series<RX, T>> values, ScalarTag srx, ScalarTag st) {
+    var asIdxSeq = values; //.toIndexedSeq;
     switch (asIdxSeq.length) {
       case 0:
-        return empty(); //[RX, Int, T]
+        return new Frame.empty(srx, ScalarTag.stInt, st); //[RX, Int, T]
       case 1:
-        return new Frame(
-            asIdxSeq.map(_.values), asIdxSeq(0).index, IndexIntRange(1));
+        return new Frame(asIdxSeq.map((i) => i.values), asIdxSeq(0).index,
+            new IndexIntRange(1));
       default:
-        val init =
-            Frame(IndexedSeq(asIdxSeq(0).values), asIdxSeq(0).index, Array(0));
-        val temp = asIdxSeq.tail.foldLeft(init)(_.joinS(_, OuterJoin));
-        Frame(temp.values, temp.rowIx, IndexIntRange(temp.numCols));
+        var init = new Frame(
+            /*new IndexedSeq(*/ asIdxSeq(0).values,
+            asIdxSeq(0).index,
+            []);
+        var temp =
+            asIdxSeq.tail.fold(init, (a, b) => a.joinS(b, JoinType.OuterJoin));
+        return new Frame(
+            temp.values, temp.rowIx, new IndexIntRange(temp.numCols));
     }
   }
 
@@ -1871,17 +1957,25 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    * the indexes of the series provided.
    */
   factory Frame.seriesCol /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ (
-      Seq<Series<RX, T>> values, Index<CX> colIx) /*: Frame<RX, CX, T>*/ {
-    var asIdxSeq = values.toIndexedSeq();
+      Iterable<Series<RX, T>> values,
+      Index<CX> colIx,
+      ScalarTag srx,
+      ScalarTag st) /*: Frame<RX, CX, T>*/ {
+    var asIdxSeq = values; //.toIndexedSeq();
     switch (asIdxSeq.length) {
       case 0:
-        return empty(); //[RX, CX, T]
+        return new Frame.empty(srx, colIx.scalarTag, st); //[RX, CX, T]
       case 1:
-        return new Frame(asIdxSeq.map(_.values), asIdxSeq(0).index, colIx);
+        return new Frame(
+            asIdxSeq.map((i) => i.values), asIdxSeq(0).index, colIx);
       default:
-        val init = Frame(Seq(asIdxSeq(0).values), asIdxSeq(0).index, Index(0));
-        val temp = values.tail.foldLeft(init)(_.joinS(_, OuterJoin));
-        Frame(temp.values, temp.rowIx, colIx);
+        var init = new Frame(
+            /*Seq(*/ asIdxSeq(0).values,
+            asIdxSeq(0).index,
+            new Index(0));
+        var temp =
+            values.tail.fold(init, (a, b) => a.joinS(b, JoinType.OuterJoin));
+        return new Frame(temp.values, temp.rowIx, colIx);
     }
   }
 
@@ -1921,12 +2015,13 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    * Build a Frame from a provided Mat, row index, and col index
    */
   static frameFromMatIndex /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ (
-      Mat<T> mat, Index<RX> rowIx, Index<CX> colIx) {
+      Mat /*<T>*/ mat, Index /*<RX>*/ rowIx, Index /*<CX>*/ colIx) {
     if (mat.length == 0) {
-      return empty(); //[RX, CX, T]
+      return new Frame.empty(
+          rowIx.scalarTag, colIx.scalarTag, mat.scalarTag); //[RX, CX, T]
     } else {
-      return new Frame<RX, CX, T>(mat.cols(), rowIx, colIx)
-          .withMat(new Some(mat));
+      return new Frame /*<RX, CX, T>*/ (mat.cols(), rowIx, colIx)
+          .withMat(/*Some(*/ mat);
     }
   }
 }
@@ -1941,9 +2036,10 @@ class Panel {
    * @tparam RX Type of row keys
    * @tparam CX Type of col keys
    */
-  static Frame<RX, CX, Any> empty() /*[RX: ST: ORD, CX: ST: ORD]*/ =>
-      new Frame<RX, CX, Any>(
-          MatCols.empty(), new Index.empty<RX>(), new Index.empty<CX>());
+  static Frame /*<RX, CX, Any>*/ empty(ScalarTag srx, ScalarTag scx,
+          ScalarTag st) /*[RX: ST: ORD, CX: ST: ORD]*/ =>
+      new Frame /*<RX, CX, Any>*/ (
+          new MatCols.empty(st), new Index.empty(srx), new Index.empty(scx));
 
   // --------------------------------
   // Construct using sequence of vectors
@@ -1951,13 +2047,14 @@ class Panel {
   /**
    * Factory method to create a Frame from a sequence of Vec objects
    */
-  static Frame<int, int, Any> vecs(/*Vec[_]**/ values) {
+  static Frame /*<int, int, Any>*/ fromVecs(Iterable<Vec> /*Vec[_]**/ values) {
     if (values.isEmpty) {
-      return empty(); //[Int, Int]
+      return empty(
+          ScalarTag.stInt, ScalarTag.stInt, ScalarTag.stAny); //[Int, Int]
     } else {
-      val asIdxSeq = values.toIndexedSeq();
-      return apply(asIdxSeq, IndexIntRange(asIdxSeq(0).length),
-          IndexIntRange(asIdxSeq.length));
+      var asIdxSeq = values; //.toIndexedSeq();
+      return apply(asIdxSeq, new IndexIntRange(asIdxSeq(0).length),
+          new IndexIntRange(asIdxSeq.length));
     }
   }
 
@@ -1966,10 +2063,13 @@ class Panel {
    * a row index, and a column index.
    */
   static Frame /*[RX, CX, Any]*/ vecsIndex /*[RX: ST: ORD, CX: ST: ORD]*/ (
-      Seq<Vec /*[_]*/ > values, Index<RX> rowIx, Index<CX> colIx) {
-    val anySeq = values.toIndexedSeq();
+      Iterable<Vec /*[_]*/ > values,
+      Index /*<RX>*/ rowIx,
+      Index /*<CX>*/ colIx) {
+    var anySeq = values; //.toIndexedSeq();
     if (values.isEmpty) {
-      return empty(); //[RX, CX]
+      return empty(
+          rowIx.scalarTag, colIx.scalarTag, ScalarTag.stAny); //[RX, CX]
     } else {
       return new Frame(toSeqVec(anySeq), rowIx, colIx);
     }
@@ -1980,16 +2080,18 @@ class Panel {
    * and a column index.
    */
   static Frame /*[Int, CX, Any]*/ vecCol /*[CX: ST: ORD]*/ (
-      Seq<Vec /*[_]*/ > values, Index<CX> colIx) {
+      Iterable<Vec /*[_]*/ > values, Index /*<CX>*/ colIx) {
     if (values.isEmpty) {
-      return empty(); //[Int, CX]
+      return empty(
+          ScalarTag.stInt, colIx.scalarTag, ScalarTag.stAny); //[Int, CX]
     } else {
-      var asIdxSeq = values.toIndexedSeq();
-      return new Frame(asIdxSeq, IndexIntRange(asIdxSeq(0).length), colIx);
+      var asIdxSeq = values; //.toIndexedSeq();
+      return new Frame(asIdxSeq, new IndexIntRange(asIdxSeq(0).length), colIx);
     }
   }
 
-  static /*private*/ IndexedSeq<Vec<Any>> toSeqVec(Seq<Vec /*[_]*/ > anySeq) =>
+  static /*private IndexedSeq*/ Iterable<Vec /*<Any>*/ > toSeqVec(
+          Iterable<Vec /*[_]*/ > anySeq) =>
       anySeq.toIndexedSeq.asInstanceOf[IndexedSeq[Vec[Any]]];
 
   /**
@@ -2009,26 +2111,29 @@ class Panel {
   // --------------------------------
   // Construct using sequence of series
 
-  static /*private*/ toSeqSeries /*[RX]*/ (Seq<Series /*[RX, _]*/ > anySeq) =>
+  static /*private*/ toSeqSeries /*[RX]*/ (
+          Iterable<Series /*[RX, _]*/ > anySeq) =>
       anySeq.toIndexedSeq.asInstanceOf[IndexedSeq[Series /*[RX, Any]*/]];
 
   /**
    * Factory method to create a Frame from a sequence of Series. The row labels
    * of the result are the outer join of the indexes of the series provided.
    */
-  static Frame /*[RX, Int, Any]*/ series /*[RX: ST: ORD]*/ (
-      Iterable<Series /*[RX, _]**/ > values) {
-    val asIdxSeq = toSeqSeries(values);
+  static Frame /*[RX, Int, Any]*/ fromSeries /*[RX: ST: ORD]*/ (
+      Iterable<Series /*[RX, _]**/ > values, ScalarTag srx) {
+    var asIdxSeq = toSeqSeries(values);
     switch (asIdxSeq.length) {
       case 0:
-        return empty(); //[RX, Int]
+        return empty(srx, ScalarTag.stInt, ScalarTag.stAny); //[RX, Int]
       case 1:
-        return new Frame(
-            asIdxSeq.map(_.values), asIdxSeq(0).index, IndexIntRange(1));
+        return new Frame(asIdxSeq.map((i) => i.values), asIdxSeq(0).index,
+            new IndexIntRange(1));
       default:
-        val init = Frame(Seq(asIdxSeq(0).values), asIdxSeq(0).index, Array(0));
-        val temp = asIdxSeq.tail.foldLeft(init)(_.joinS(_, OuterJoin));
-        Frame(temp.values, temp.rowIx, IndexIntRange(temp.numCols));
+        var init =
+            new Frame(/*Seq(*/ asIdxSeq(0).values, asIdxSeq(0).index, [0]);
+        var temp = asIdxSeq.tail
+            .foldLeft(init, (a, b) => a.joinS(b, JoinType.OuterJoin));
+        return Frame(temp.values, temp.rowIx, new IndexIntRange(temp.numCols));
     }
   }
 
@@ -2038,17 +2143,22 @@ class Panel {
    * the indexes of the series provided.
    */
   static Frame /*[RX, CX, Any]*/ seriesCol /*[RX: ST: ORD, CX: ST: ORD]*/ (
-      Seq<Series /*[RX, _]*/ > values, Index<CX> colIx) {
-    val asIdxSeq = toSeqSeries(values);
+      Iterable<Series /*[RX, _]*/ > values,
+      Index /*<CX>*/ colIx,
+      ScalarTag srx) {
+    var asIdxSeq = toSeqSeries(values);
     switch (asIdxSeq.length) {
       case 0:
-        return empty(); //[RX, CX]
+        return empty(colIx.scalarTag, srx, ScalarTag.stAny); //[RX, CX]
       case 1:
-        return new Frame(asIdxSeq.map(_.values), asIdxSeq(0).index, colIx);
+        return new Frame(
+            asIdxSeq.map((i) => i.values), asIdxSeq(0).index, colIx);
       default:
-        val init = Frame(Seq(asIdxSeq(0).values), asIdxSeq(0).index, Index(0));
-        val temp = asIdxSeq.tail.foldLeft(init)(_.joinS(_, OuterJoin));
-        Frame(temp.values, temp.rowIx, colIx);
+        var init = new Frame(
+            /*Seq(*/ asIdxSeq(0).values, asIdxSeq(0).index, new Index(0));
+        var temp = asIdxSeq.tail
+            .foldLeft(init, (a, b) => a.joinS(b, JoinType.OuterJoin));
+        return new Frame(temp.values, temp.rowIx, colIx);
     }
   }
 
@@ -2077,4 +2187,23 @@ class Panel {
 class SplitFrame<RX, CX, T> {
   final Frame<RX, CX, T> left, right;
   SplitFrame._(this.left, this.right);
+}
+
+class Aligned<RX, CX, T, U> {
+  final Frame<RX, CX, T> left;
+  final Frame<RX, CX, U> right;
+  Aligned._(this.left, this.right);
+}
+
+class FramePair<A, B, T> {
+  final A index;
+  final Series<B, T> value;
+  FramePair._(this.index, this.value);
+}
+
+class FrameTriple<RX, CX, T> {
+  final RX row;
+  final CX col;
+  final T value;
+  FrameTriple._(this.row, this.col, this.value);
 }

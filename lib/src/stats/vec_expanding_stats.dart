@@ -14,7 +14,7 @@
  * limitations under the License.
  **/
 
-library saddle.stats;
+library saddle.stats.vec_expanding_stats;
 
 //import org.saddle.Vec
 //

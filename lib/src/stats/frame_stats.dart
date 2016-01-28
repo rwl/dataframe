@@ -29,8 +29,8 @@ import '../series.dart';
  * @tparam CX Type of the column index elements
  * @tparam T Type of the elements of the frame
  */
-class FrameStats<T> /*[RX, CX, T: ST]*/ {
-  Frame<T> frame;
+class FrameStats<RX, CX, T> /*[RX, CX, T: ST]*/ {
+  Frame<RX, CX, T> frame;
   FrameStats(this.frame);
   // --------------------------------------
   // helpful math ops

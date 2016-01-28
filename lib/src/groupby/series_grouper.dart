@@ -14,68 +14,82 @@
  * limitations under the License.
  **/
 
-package org.saddle.groupby
+library saddle.groupby.series_grouaper;
 
-import org.saddle._
+//import org.saddle._
+
+import '../series.dart';
+import '../index.dart';
+import '../vec.dart';
+
+import 'index_grouper.dart';
 
 /**
  * Helper class to do combine or transform after a groupBy
  */
-class SeriesGrouper[Y: ST: ORD, X: ST: ORD, T: ST](
-  ix: Index[Y], series: Series[X, T], sorted: Boolean = true) extends IndexGrouper[Y](ix, sorted) {
+class SeriesGrouper<Y, X,
+    T> /*[Y: ST: ORD, X: ST: ORD, T: ST]*/ extends IndexGrouper<Y> {
+  SeriesGrouper(Index<Y> ix, Series<X, T> series, [bool sorted = true])
+      : super(ix, sorted);
 
-  def combine[U: ST: ORD](fn: (Y, Vec[T]) => U): Series[Y, U] =
-    Series(SeriesGrouper.combine(ix, keys, series.values, fn), Index(keys))
+  Series<Y, U> combine /*[U: ST: ORD]*/ (U fn(Y arg1, Vec<T> arg2)) =>
+      new Series(new SeriesGrouper.combine(ix, keys, series.values, fn),
+          new Index(keys));
 
   // less powerful combine, ignores group key
-  def combine[U: ST: ORD](fn: Vec[T] => U): Series[Y, U] =
-    combine( (k, v) => fn(v) )
+  Series<Y, U> combineIgnoreKey /*[U: ST: ORD]*/ (U fn(Vec<T> arg)) =>
+      combine((k, v) => fn(v));
 
-  def transform[U: ST](fn: (Y, Vec[T]) => Vec[U]): Series[X, U] =
-    Series(SeriesGrouper.transform(series.values, groups, fn), series.index)
+  Series<X, U> transform /*[U: ST]*/ (Vec<U> fn(Y arg1, Vec<T> arg2)) =>
+      new Series(
+          new SeriesGrouper.transform(series.values, groups, fn), series.index);
 
   // less powerful transform, ignores group key
-  def transform[U: ST](fn: Vec[T] => Vec[U]): Series[X, U] =
-    transform( (k, v) => fn(v) )
-}
-
-object SeriesGrouper {
+  Series<X, U> transformIgnoreKey /*[U: ST]*/ (Vec<U> fn(Vec<T> arg)) =>
+      transform((k, v) => fn(v));
+//}
+//
+//object SeriesGrouper {
   // Collapses each group vector to a single value
-  private[saddle] def combine[Y: ST: ORD, T: ST, U: ST](
-    ix: Index[Y], uniq: Array[Y], vec: Vec[T], fn: (Y, Vec[T]) => U): Vec[U] = {
-    val sz = uniq.length
+  static /*private[saddle]*/ Vec<U> combine_ /*[Y: ST: ORD, T: ST, U: ST]*/ (
+      Index<Y> ix, List<Y> uniq, Vec<T> vec, U fn(Y arg1, Vec<T> arg2)) {
+    var sz = uniq.length;
 
-    val res = Array.ofDim[U](sz)
-    var i = 0
-    while(i < sz) {
-      val v = uniq(i)
-      res(i) = fn(v, vec.take(ix(v)))
-      i += 1
+    var res = new List<U>(sz);
+    var i = 0;
+    while (i < sz) {
+      var v = uniq[i];
+      res[i] = fn(v, vec.take(ix(v)));
+      i += 1;
     }
 
-    Vec(res)
+    return new Vec(res);
   }
 
   // Transforms each group vector into a new vector
-  private[saddle] def transform[Y: ST: ORD, T: ST, U: ST](
-    vec: Vec[T], groups: Array[(Y, Array[Int])], fn: (Y, Vec[T]) => Vec[U]): Vec[U] = {
-    val iter = for ( (k, i) <- groups) yield (fn(k, vec(i)), i)
-    val res = Array.ofDim[U](vec.length)
-    for ((v, i) <- iter) {
-      val sz = v.length
-      var k = 0
-      while (k < sz) {
-        // put each value back into original location
-        res(i(k)) = v(k)
-        k += 1
-      }
-    }
-    Vec(res)
+  static /*private[saddle]*/ Vec<U> transform_ /*[Y: ST: ORD, T: ST, U: ST]*/ (
+      Vec<T> vec,
+      List /*[(Y, Array[Int])]*/ groups,
+      Vec<U> fn(Y arg1, Vec<T> arg2)) {
+//    var iter = for ( (k, i) <- groups) yield (fn(k, vec(i)), i)
+//    var res = Array.ofDim[U](vec.length)
+//    for ((v, i) <- iter) {
+//      val sz = v.length
+//      var k = 0
+//      while (k < sz) {
+//        // put each value back into original location
+//        res(i(k)) = v(k)
+//        k += 1
+//      }
+//    }
+    return new Vec(res);
   }
 
-  def apply[Y: ST: ORD, X: ST: ORD, T: ST](ix: Index[Y], ser: Series[X, T]) =
-    new SeriesGrouper(ix, ser)
+  factory SeriesGrouper.make /*[Y: ST: ORD, X: ST: ORD, T: ST]*/ (
+          Index<Y> ix, Series<X, T> ser) =>
+      new SeriesGrouper(ix, ser);
 
-  def apply[Y: ST: ORD, T: ST](series: Series[Y, T]) =
-    new SeriesGrouper(series.index, series)
+  factory SeriesGrouper.fromSeries /*[Y: ST: ORD, T: ST]*/ (
+          Series<Y, T> series) =>
+      new SeriesGrouper(series.index, series);
 }

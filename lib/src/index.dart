@@ -675,7 +675,7 @@ abstract class Index<
    * Factor method to create an empty Index
    * @tparam C type of Index
    */
-  Index /*<C>*/ empty(ScalarTag<T> st) /*[C: ST: ORD]*/ => new Index([], st);
+  factory Index.empty(ScalarTag<T> st) /*[C: ST: ORD]*/ => new Index([], st);
 
   // (safe) conversions
 

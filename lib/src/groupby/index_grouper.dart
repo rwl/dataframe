@@ -14,28 +14,45 @@
  * limitations under the License.
  **/
 
-package org.saddle.groupby
+library saddle.groupby.index_grouper;
 
-import org.saddle._
+//import org.saddle._
+
+import '../index.dart';
+import '../array/array.dart';
 
 /**
  * Creates groups for each unique key in an index
  */
-class IndexGrouper[Y: ST: ORD](ix: Index[Y], sorted: Boolean = true) {
-  private lazy val uniq: Array[Y] = {
-    val arr = ix.uniques.toArray
-    if (sorted && !ix.isMonotonic)
-      array.take(arr, array.argsort(arr), sys.error("Logic error in sorting group index"))
-    else
-      arr
+class IndexGrouper<Y> /*[Y: ST: ORD]*/ {
+  Index<Y> ix;
+  bool sorted;
+
+  IndexGrouper(this.ix, [this.sorted = true]);
+
+  List<Y> _uniq = null;
+  /*private lazy*/ List<Y> get uniq {
+    if (_uniq == null) {
+      var arr = ix.uniques().toArray_();
+      if (sorted && !ix.isMonotonic) {
+        _uniq = array.take(arr, array.argsort(arr, ix.scalarTag),
+            () => throw "Logic error in sorting group index");
+      } else {
+        _uniq = arr;
+      }
+    }
+    return _uniq;
   }
 
-  def keys: Array[Y] = uniq
+  List<Y> get keys => uniq;
 
-  def groups: Array[(Y, Array[Int])] = for (k <- keys) yield (k, ix.get(k))
-}
+  List /*[(Y, Array[Int])]*/ get groups => keys.map((k) => [k, ix.get(k)]);
+//}
 
-object IndexGrouper {
-  def apply[Y: ST: ORD](ix: Index[Y]) = new IndexGrouper(ix)
-  def apply[Y: ST: ORD](ix: Index[Y], sorted: Boolean = true) = new IndexGrouper(ix, sorted)
+//object IndexGrouper {
+  factory IndexGrouper.fromIndex /*[Y: ST: ORD]*/ (Index<Y> ix) =>
+      new IndexGrouper(ix);
+  factory IndexGrouper.make /*[Y: ST: ORD]*/ (Index<Y> ix,
+          [bool sorted = true]) =>
+      new IndexGrouper(ix, sorted);
 }

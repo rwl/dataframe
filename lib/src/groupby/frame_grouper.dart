@@ -14,16 +14,40 @@
  * limitations under the License.
  **/
 
-library saddle.groupby;
+library saddle.groupby.frame_grouper;
 
 //import org.saddle._
+
+import '../index.dart';
+import '../frame.dart';
+import '../vec.dart';
+import '../array/array.dart';
+
+import 'series_grouper.dart';
 
 /**
  * Helper class to do combine or transform after a groupBy
  */
 class FrameGrouper<Z, X, Y, T> /*[Z: ST: ORD, X: ST: ORD, Y: ST: ORD, T: ST]*/ {
-  FrameGrouper(Index<Z> ix, Frame<X, Y, T> frame, [bool sorted = true]);
+  final Index<Z> ix;
+  final Frame<X, Y, T> frame;
+  final bool sorted;
 
+  FrameGrouper(this.ix, this.frame, [this.sorted = true]);
+
+  List _uniq = null;
+  List get uniq {
+    if (_uniq == null) {
+      var arr = ix.uniques().toArray_();
+      if (sorted && !ix.isMonotonic) {
+        _uniq = array.take(arr, array.argsort(arr, ix.scalarTag),
+            () => throw "Logic error in sorting group index");
+      } else {
+        _uniq = arr;
+      }
+    }
+    return _uniq;
+  }
   /*private lazy val uniq: Array<Z> = {
     val arr = ix.uniques.toArray
     if (sorted && !ix.isMonotonic)
@@ -32,33 +56,36 @@ class FrameGrouper<Z, X, Y, T> /*[Z: ST: ORD, X: ST: ORD, Y: ST: ORD, T: ST]*/ {
       arr
   }*/
 
-  Array<Z> get keys => uniq;
+  List<Z> get keys => uniq;
 
 //  Array/*<(Z, Array<int>)>*/ groups() => for (k <- keys) yield (k, ix.get(k))
 
-  Frame<Z, Y, U> combine /*[U: ST]*/ (U fn(Z arg1, Vec<T> arg2)) => new Frame(
-          frame.values.map(SeriesGrouper.combine(ix, keys, _, fn))) // : _*)
-      .setRowIndex(keys)
-      .setColIndex(frame.colIx);
+  Frame<Z, Y, U> combine /*[U: ST]*/ (U fn(Z arg1, Vec<T> arg2)) {
+    return new Frame(frame.values
+            .map(new SeriesGrouper.combine(ix, keys, _, fn))) // : _*)
+        .setRowIndex(keys)
+        .setColIndex(frame.colIx);
+  }
 
   // less powerful combine, ignores group key
   Frame<Z, Y, U> combineIgnoreKey /*[U: ST: ORD]*/ (U fn(Vec<T> arg)) =>
       combine((k, v) => fn(v));
 
   Frame<X, Y, U> transform /*[U: ST]*/ (Vec<U> fn(Z arg1, Vec<T> arg2)) =>
-      Frame(frame.values.map(SeriesGrouper.transform(_, groups, fn)),
+      new Frame(frame.values.map(new SeriesGrouper.transform(_, groups, fn)),
           frame.rowIx, frame.colIx);
 
   // less powerful transform, ignores group key
   Frame<X, Y, U> transformIgnoreKey /*[U: ST]*/ (Vec<U> fn(Vec<T> arg)) =>
       transform((k, v) => fn(v));
-}
+//}
 
 //object FrameGrouper {
-//  def apply[Z: ST: ORD, Y: ST: ORD, T: ST](frame: Frame[Z, Y, T]) =
-//    new FrameGrouper(frame.rowIx, frame)
-//
-//  def apply[Z: ST: ORD, X: ST: ORD, Y: ST: ORD, T: ST](
-//    ix: Index<Z>, frame: Frame[X, Y, T]) = new FrameGrouper(ix, frame)
-//}
-//
+  factory FrameGrouper.fromFrame /*[Z: ST: ORD, Y: ST: ORD, T: ST]*/ (
+          Frame<Z, Y, T> frame) =>
+      new FrameGrouper(frame.rowIx, frame);
+
+//  factory FrameGrouper.from /*[Z: ST: ORD, X: ST: ORD, Y: ST: ORD, T: ST]*/ (
+//          Index<Z> ix, Frame<X, Y, T> frame) =>
+//      new FrameGrouper(ix, frame);
+}

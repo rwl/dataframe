@@ -28,7 +28,7 @@ class BufferAny<T> /*[T: ST]*/ extends Buffer<T> {
   BufferAny([int sz = 16]);
 
   var list = new Array.ofDim<T>(sz);
-  var count = 0;
+//  var count = 0;
   var remain = sz;
 
   apply(int loc) => list(loc);

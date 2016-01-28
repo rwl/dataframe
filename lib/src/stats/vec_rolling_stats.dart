@@ -14,7 +14,7 @@
  * limitations under the License.
  **/
 
-library saddle.stats;
+library saddle.stats.vec_rolling_stats;
 
 //import scala.{specialized => spec}
 //import org.saddle._

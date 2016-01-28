@@ -682,7 +682,8 @@ class Series<X,
    * @param f Function Series<X, T> => B to operate on sliding window
    * @tparam B Result type of function
    */
-  Series<X, B> rolling /*[B: ST]*/ (int winSz, B f(Series<X, T> arg)) {
+  Series /*<X, B>*/ rolling /*[B: ST]*/ (
+      int winSz, /*B*/ dynamic f(Series<X, T> arg), ScalarTag scb) {
     if (winSz <= 0) {
       return new Series<X, B>.empty();
     } else {
@@ -694,7 +695,7 @@ class Series<X,
         buf[i - win] = f(slice(i - win, i));
         i += 1;
       }
-      return new Series(new Vec(buf), index.slice(win - 1, len));
+      return new Series(new Vec(buf, scb), index.slice(win - 1, len));
     }
   }
 
