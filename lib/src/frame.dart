@@ -20,6 +20,7 @@ import 'dart:math' as math;
 
 import 'index.dart';
 import 'mat.dart';
+import 'vec.dart';
 import 'series.dart';
 
 import 'array/array.dart';
@@ -30,7 +31,8 @@ import 'index/index_int_range.dart';
 import 'ops/ops.dart';
 //import 'stats/stats.dart';
 //import 'util/concat.dart' show Promoter;
-import 'scalar/scalar.dart' show Scalar;
+import 'scalar/scalar.dart';
+import 'scalar/scalar_tag.dart';
 //import java.io.OutputStream
 //import org.saddle.mat.MatCols
 import 'mat/mat_cols.dart';
@@ -485,10 +487,15 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    * @param rix Sequence of keys to be the row index of the result Frame
    */
   Frame<RX, CX, T> reindexRow(Index<RX> rix) {
-    val ixer = rowIx.getIndexer(rix);
-//    ixer.map { i =>
-//      Frame(values.map(v => Vec(array.take(v, i, v.scalarTag.missing))), rix, colIx)
-//    } getOrElse this
+    var ixer = rowIx.getIndexer(rix);
+    if (ixer == null) {
+      return this;
+    }
+    return new Frame(
+        values.map((v) =>
+            new Vec(array.take(v, ixer, v.scalarTag.missing), v.scalarTag)),
+        rix,
+        colIx);
   }
 
   /**
@@ -497,10 +504,11 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    * @param cix Sequence of keys to be the col index of the result Frame
    */
   Frame<RX, CX, T> reindexCol(Index<CX> cix) {
-    val ixer = colIx.getIndexer(cix);
-//    ixer.map { i =>
-//      Frame(values.take(i), rowIx, cix)
-//    } getOrElse this
+    var ixer = colIx.getIndexer(cix);
+    if (ixer == null) {
+      return this;
+    }
+    return new Frame(values.take(ixer), rowIx, cix);
   }
 
   // -----------------------------------------
@@ -511,9 +519,9 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    * The result is a homogeneous frame consisting of the selected data.
    * @tparam U The type of columns to extract
    */
-  Frame<RX, CX, U> colType /*[U: ST]*/ () {
-    val columns, locs = values.takeType[U];
-    Frame(columns, rowIx, colIx.take(locs));
+  Frame /*<RX, CX, U>*/ colType /*[U: ST]*/ (ScalarTag bSt) {
+    var tt = values.takeType(bSt); //[U];
+    return new Frame(tt.vecs, rowIx, colIx.take(tt.i));
   }
 
   /**
@@ -522,14 +530,16 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    * @tparam U1 First type of columns to extract
    * @tparam U2 Second type of columns to extract
    */
-  Frame<RX, CX, Any> colTypeAlt /*[U1: ST, U2: ST]*/ () {
-    val columns1, locs1 = values.takeType[U1];
-    val columns2, locs2 = values.takeType[U2];
+  Frame /*<RX, CX, Any>*/ colTypeAlt /*[U1: ST, U2: ST]*/ (
+      ScalarTag bSt1, ScalarTag bSt2) {
+    var /*columns1, locs1*/ tt1 = values.takeType(bSt1); //[U1];
+    var /*columns2, locs2*/ tt2 = values.takeType(bSt2); //[U2];
 
-//    val frm = Panel(columns1 ++ columns2, rowIx, colIx.take(locs1) concat colIx.take(locs2))
-    val tkr = array.argsort(array.flatten(Seq(locs1, locs2)));
+    var frm = new Panel(tt1.vecs..addAll(tt2.vecs), rowIx,
+        colIx.take(tt1.i)..addAll(colIx.take(tt2.i)));
+    var tkr = array.argsort(array.flatten([tt1.i, tt2.i]), ScalarTag.stInt);
 
-    frm.colAt(tkr);
+    return frm.colAt(tkr);
   }
 
   // ----------------------------------------
@@ -541,16 +551,18 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    * @param newIx A new Index
    * @tparam Y Type of elements of new Index
    */
-  Frame<Y, CX, T> setRowIndex /*[Y: ST: ORD]*/ (Index<Y> newIx) =>
-      Frame(values, newIx, colIx).withMat(cachedMat);
+  Frame /*<Y, CX, T>*/ setRowIndex /*[Y: ST: ORD]*/ (Index /*<Y>*/ newIx) =>
+      new Frame(values, newIx, colIx).withMat(cachedMat);
 
   /**
    * Create a new Frame using the current values but with the new row index specified
    * by the column at a particular offset, and with that column removed from the frame
    * data body.
    */
-  Frame<T, CX, T> withRowIndex(int col) /*(implicit ordT: ORD[T])*/ =>
-      this.setRowIndex(Index(this.colAt(col).toVec)).filterAt(_ != col);
+  Frame /*<T, CX, T>*/ withRowIndex(int col) /*(implicit ordT: ORD[T])*/ => this
+      .setRowIndex(
+          new Index(this.colAt(col).toVec().toArray(), values.scalarTag))
+      .filterAt((i) => i != col);
 
   /**
    * Overloaded method to create hierarchical index from two cols.
@@ -558,8 +570,11 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
   Frame /*<(T, T), CX, T>*/ with2RowIndex(
       int col1, int col2) /*(implicit ordT: ORD[T])*/ {
     Index /*[(T, T)]*/ newIx =
-        Index.make(this.colAt(col1).toVec, this.colAt(col2).toVec);
+        Index.make(this.colAt(col1).toVec(), this.colAt(col2).toVec());
 //    this.setRowIndex(newIx).filterAt { case c => !Set(col1, col2).contains(c) }
+    this
+        .setRowIndex(newIx)
+        .filterAt((c) => !new Set.from([col1, col2]).contains(c));
   }
 
   /**
@@ -568,8 +583,10 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    * @param fn The function RX => Y with which to map
    * @tparam Y Result type of index, ie Index<Y>
    */
-  Frame<Y, CX, T> mapRowIndex /*[Y: ST: ORD]*/ (Y fn(RX arg)) =>
-      Frame(values, rowIx.map(fn), colIx).withMat(cachedMat);
+  Frame /*<Y, CX, T>*/ mapRowIndex /*[Y: ST: ORD]*/ (
+          /*Y*/ dynamic fn(RX arg),
+          ScalarTag sy) =>
+      new Frame(values, rowIx.map(fn, sy), colIx).withMat(cachedMat);
 
   /**
    * Create a new Frame using the current values but with the new col index. Positions
@@ -577,16 +594,18 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    * @param newIx A new Index
    * @tparam Y Type of elements of new Index
    */
-  Frame<RX, Y, T> setColIndex /*[Y: ST: ORD]*/ (Index<Y> newIx) =>
-      Frame(values, rowIx, newIx).withMat(cachedMat);
+  Frame /*<RX, Y, T>*/ setColIndex /*[Y: ST: ORD]*/ (Index /*<Y>*/ newIx) =>
+      new Frame(values, rowIx, newIx).withMat(cachedMat);
 
   /**
    * Create a new Frame using the current values but with the new col index specified
    * by the row at a particular offset, and with that row removed from the frame
    * data body.
    */
-  Frame<RX, T, T> withColIndex(int row) /*(implicit ordT: ORD[T])*/ =>
-      this.setColIndex(Index(this.rowAt(row).toVec)).rfilterAt(_ != row);
+  Frame<RX, T, T> withColIndex(int row) /*(implicit ordT: ORD[T])*/ => this
+      .setColIndex(
+          new Index(this.rowAt(row).toVec().toArray(), values.scalarTag))
+      .rfilterAt((i) => i != row);
 
   /**
    * Overloaded method to create hierarchical index from two rows.
@@ -594,8 +613,11 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
   Frame /*<RX, (T, T), T>*/ with2ColIndex(
       int row1, int row2) /*(implicit ordT: ORD[T])*/ {
     Index /*[(T, T)]*/ newIx =
-        Index.make(this.rowAt(row1).toVec, this.rowAt(row2).toVec);
+        new Index.make(this.rowAt(row1).toVec(), this.rowAt(row2).toVec());
 //    this.setColIndex(newIx).rfilterAt { case r => !Set(row1, row2).contains(r) };
+    this
+        .setColIndex(newIx)
+        .rfilterAt((r) => !new Set.from([row1, row2]).contains(r));
   }
 
   /**
@@ -604,8 +626,10 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    * @param fn The function CX => Y with which to map
    * @tparam Y Result type of index, ie Index<Y>
    */
-  Frame<RX, Y, T> mapColIndex /*[Y: ST: ORD]*/ (Y fn(CX arg)) {
-//    Frame(values, rowIx, colIx.map(fn)) withMat cachedMat;
+  Frame /*<RX, Y, T>*/ mapColIndex /*[Y: ST: ORD]*/ (
+      /*Y*/ dynamic fn(CX arg),
+      ScalarTag sy) {
+    return new Frame(values, rowIx, colIx.map(fn, sy)).withMat(cachedMat);
   }
 
   /**
@@ -613,7 +637,8 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    * to the bound [0, numRows - 1), as in an array.
    */
   Frame<int, CX, T> resetRowIndex() {
-//    Frame(values, IndexIntRange(numRows), colIx) withMat cachedMat;
+    return new Frame(values, new IndexIntRange(numRows), colIx)
+        .withMat(cachedMat);
   }
 
   /**
@@ -621,7 +646,8 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    * to the bound [0, numCols - 1), as in an array.
    */
   Frame<RX, int, T> resetColIndex() {
-//    Frame(values, rowIx, IndexIntRange(numCols)) withMat cachedMat
+    return new Frame(values, rowIx, new IndexIntRange(numCols))
+        .withMat(cachedMat);
   }
 
   // ----------------------------------------
@@ -632,28 +658,30 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    *
    * @param n number of rows to extract
    */
-  Frame<RX, CX, T> head(int n) => transform(_.head(n));
+  Frame<RX, CX, T> head(int n) => transform((s) => s.head(n));
 
   /**
    * Extract last n rows
    *
    * @param n number of rows to extract
    */
-  Frame<RX, CX, T> tail(int n) => transform(_.tail(n));
+  Frame<RX, CX, T> tail(int n) => transform((s) => s.tail(n));
 
   /**
    * Extract first n columns
    *
    * @param n number of columns to extract
    */
-  headCol(int n) => Frame(values.take(n), rowIx, colIx.head(n));
+  headCol(int n) =>
+      new Frame.vecsIndex(values.sublist(0, n), rowIx, colIx.head(n));
 
   /**
    * Extract last n columns
    *
    * @param n number of columns to extract
    */
-  tailCol(int n) => Frame(values.takeRight(n), rowIx, colIx.tail(n));
+  tailCol(int n) =>
+      new Frame(values.sublist(values.length - n), rowIx, colIx.tail(n));
 
   /**
    * Extract first row matching a particular key
@@ -661,11 +689,11 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    * @param k Key to match
    */
   Series<CX, T> first(RX k) {
-    val loc = rowIx.getFirst(k);
+    var loc = rowIx.getFirst(k);
     if (loc == -1) {
-      emptyRow;
+      return emptyRow();
     } else {
-      rowAt(loc);
+      return rowAt(loc);
     }
   }
 
@@ -675,9 +703,9 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    * @param k Key to match
    */
   Series<CX, T> last(RX k) {
-    val loc = rowIx.getLast(k);
+    var loc = rowIx.getLast(k);
     if (loc == -1) {
-      new Series.empty<CX, T>();
+      return new Series<CX, T>.empty();
     } else {
       rowAt(loc);
     }
@@ -689,11 +717,11 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    * @param k Key to match
    */
   Series<RX, T> firstCol(CX k) {
-    val loc = colIx.getFirst(k);
+    var loc = colIx.getFirst(k);
     if (loc == -1) {
-      emptyCol;
+      return emptyCol();
     } else {
-      colAt(loc);
+      return colAt(loc);
     }
   }
 
@@ -703,11 +731,11 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    * @param k Key to match
    */
   Series<RX, T> lastCol(CX k) {
-    val loc = colIx.getLast(k);
+    var loc = colIx.getLast(k);
     if (loc == -1) {
-      emptyCol;
+      return emptyCol();
     } else {
-      colAt(loc);
+      return colAt(loc);
     }
   }
 
@@ -715,13 +743,13 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    * Return empty series of type equivalent to a row of frame
    *
    */
-  Series<CX, T> emptyRow() => new Series.empty<CX, T>();
+  Series<CX, T> emptyRow() => new Series<CX, T>.empty();
 
   /**
    * Return empty series of type equivalent to a column of frame
    *
    */
-  Series<RX, T> emptyCol() => new Series.empty<RX, T>();
+  Series<RX, T> emptyCol() => new Series<RX, T>.empty();
 
   /**
    * Create a new Frame whose rows are sorted according to the row
@@ -729,10 +757,11 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    */
   Frame<RX, CX, T> sortedRIx() {
     if (rowIx.isMonotonic) {
-      this;
+      return this;
     } else {
-      val taker = rowIx.argSort;
-      Frame(values.map(_.take(taker)), rowIx.take(taker), colIx);
+      var taker = rowIx.argSort();
+      return new Frame(
+          values.map((v) => v.take(taker)), rowIx.take(taker), colIx);
     }
   }
 
@@ -742,10 +771,10 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    */
   Frame<RX, CX, T> sortedCIx() {
     if (colIx.isMonotonic) {
-      this;
+      return this;
     } else {
-      val taker = colIx.argSort;
-      Frame(values.take(taker), rowIx, colIx.take(taker));
+      var taker = colIx.argSort;
+      return new Frame(values.take(taker), rowIx, colIx.take(taker));
     }
   }
 
@@ -755,18 +784,19 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    * the values in the next column, etc.
    * @param locs Location of columns containing values to sort on
    */
-  sortedRows(int /***/ locs) /*(implicit ev: ORD[T])*/ {
+  sortedRows(List<int> /***/ locs) /*(implicit ev: ORD[T])*/ {
     var order = array.range(0, numRows);
 
     var j = locs.length - 1;
     while (j >= 0) {
-      val tosort = colAt(locs(j)).values.take(order);
-      val reordr = Index(tosort).argSort;
-      order = array.take(order, reordr, sys.error("Logic error"));
+      var tosort = colAt(locs[j]).values.take(order);
+      var reordr = new Index(tosort.toArray(), values.scalarTag).argSort();
+      order = array.take(order, reordr, () => throw "Logic error");
       j -= 1;
     }
 
-    Frame(values.map(_.take(order)), rowIx.take(order), colIx);
+    return new Frame(
+        values.map((v) => v.take(order)), rowIx.take(order), colIx);
   }
 
   /**
@@ -775,18 +805,18 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    * the values in the next row, etc.
    * @param locs Location of rows containing values to sort on
    */
-  sortedCols(int /***/ locs) /*(implicit ev: ORD[T])*/ {
+  sortedCols(List<int> /***/ locs) /*(implicit ev: ORD[T])*/ {
     var order = array.range(0, numCols);
 
     var j = locs.length - 1;
     while (j >= 0) {
-      val tosort = rowAt(locs(j)).values.take(order);
-      val reordr = Index(tosort).argSort;
-      order = array.take(order, reordr, sys.error("Logic error"));
+      var tosort = rowAt(locs[j]).values.take(order);
+      var reordr = new Index(tosort, values.scalarTag).argSort();
+      order = array.take(order, reordr, () => throw "Logic error");
       j -= 1;
     }
 
-    Frame(values.take(order), rowIx, colIx.take(order));
+    return new Frame(values.take(order), rowIx, colIx.take(order));
   }
 
   /**
@@ -796,9 +826,10 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    *          ordering
    * @tparam Q Result type of the function
    */
-  Frame<RX, CX, T> sortedRowsBy /*[Q: ORD]*/ (Q f(Series<CX, T> arg)) {
-    val perm = array.range(0, numRows).sortBy((int i) => f(rowAt(i)));
-    rowAt(perm);
+  Frame<RX, CX, T> sortedRowsBy /*[Q: ORD]*/ (
+      /*Q*/ dynamic f(Series<CX, T> arg)) {
+    List<int> perm = array.range(0, numRows).sortBy((int i) => f(rowAt(i)));
+    return rowAtTake(perm);
   }
 
   /**
@@ -808,9 +839,10 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    *          ordering
    * @tparam Q Result type of the function
    */
-  Frame<RX, CX, T> sortedColsBy /*[Q: ORD]*/ (Q f(Series<RX, T> arg)) {
-    val perm = array.range(0, numCols).sortBy((int i) => f(colAt(i)));
-    colAt(perm);
+  Frame<RX, CX, T> sortedColsBy /*[Q: ORD]*/ (
+      /*Q*/ dynamic f(Series<RX, T> arg)) {
+    List<int> perm = array.range(0, numCols).sortBy((int i) => f(colAt(i)));
+    return colAtTake(perm);
   }
 
   /**
@@ -838,8 +870,10 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    * @param f Function from T to U
    * @tparam U The type of the resulting values
    */
-  Frame<RX, CX, U> mapValues /*[U: ST]*/ (U f(T arg)) =>
-      Frame(values.map((v) => v.map(f)), rowIx, colIx);
+  Frame /*<RX, CX, U>*/ mapValues /*[U: ST]*/ (
+          /*U*/ dynamic f(T arg),
+          ScalarTag su) =>
+      new Frame(values.map((v) => v.map(f, su)), rowIx, colIx);
 
   /**
    * Create a new Frame that, whenever the mask predicate function evaluates to
@@ -847,7 +881,7 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    * @param f Function from T to Boolean
    */
   Frame<RX, CX, T> maskFn(bool f(T arg)) =>
-      Frame(values.map((v) => v.mask(f)), rowIx, colIx);
+      new Frame(values.map((v) => v.maskFn(f)), rowIx, colIx);
 
   /**
    * Create a new Frame whose columns follow the rule that, wherever the mask Vec is true,
@@ -855,7 +889,7 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    * @param m Mask Vec[Boolean]
    */
   Frame<RX, CX, T> mask(Vec<bool> m) =>
-      Frame(values.map((v) => v.mask(m)), rowIx, colIx);
+      new Frame(values.map((v) => v.mask(m)), rowIx, colIx);
 
   /**
    * Joins two frames along both their indexes and applies a function to each pair
@@ -872,7 +906,7 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
       JoinType chow = JoinType.RightJoin]) /*(V f((T, U) arg))*/ {
     var l, r = align(other, rhow, chow);
 //    var result = l.values.zip(r.values).map { case (v1, v2) => VecImpl.zipMap(v1, v2)(f) };
-    Frame(result, l.rowIx, l.colIx);
+    return new Frame(result, l.rowIx, l.colIx);
   }
 
   /**
@@ -881,8 +915,8 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    * @param f Function acting on Vec[T] and producing another Vec
    * @tparam U Type of result Vec of the function
    */
-  Frame<RX, CX, U> mapVec /*[U: ST]*/ (Vec<U> f(Vec<T> arg)) =>
-      Frame(values.map(f), rowIx, colIx);
+  Frame /*<RX, CX, U>*/ mapVec /*[U: ST]*/ (Vec /*<U>*/ f(Vec<T> arg)) =>
+      new Frame(values.map(f), rowIx, colIx);
 
   /**
    * Apply a function to each column series which results in a single value, and return the
@@ -890,8 +924,12 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    * @param f Function taking a column (series) to a value
    * @tparam U The output type of the function
    */
-  Series<CX, U> reduce /*[U: ST]*/ (U f(Series<RX, T> arg)) {
-//    Series(Vec(values.map(v => f(Series(v, rowIx))) : _*), colIx);
+  Series /*<CX, U>*/ reduce /*[U: ST]*/ (
+      /*U*/ dynamic f(Series<RX, T> arg),
+      ScalarTag su) {
+//    return new Series(new Vec(values.map((v) => f(new Series(v, rowIx))) : _*), colIx);
+    return new Series(
+        new Vec(values.map((v) => f(new Series(v, rowIx))), su), colIx);
   }
 
   /**
@@ -903,9 +941,9 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    * @tparam U Type of values of result series of function
    * @tparam SX Type of index of result series of function
    */
-  Frame<SX, CX, U> transform /*[U: ST, SX: ST: ORD]*/ (
-          Series<SX, U> f(Series<RX, T> arg)) =>
-      Frame(values.map((v) => f(Series(v, rowIx))), colIx);
+  Frame /*<SX, CX, U>*/ transform /*[U: ST, SX: ST: ORD]*/ (
+          Series /*<SX, U>*/ f(Series<RX, T> arg)) =>
+      new Frame.column(values.map((v) => f(new Series(v, rowIx))), colIx);
 
   // groupBy functionality (on rows)
 
