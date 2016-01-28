@@ -105,7 +105,7 @@ abstract class Index<
    * exist.
    * @param keys Sequence of keys to find
    */
-  List<int> apply(List<T> keys) {
+  List<int> call(List<T> keys) {
     var szhint = keys.length;
     var result = []; //new List<int> /*Buffer*/ (szhint);
     var i = 0;

@@ -16,8 +16,14 @@
 
 library saddle;
 
-import 'vec/vec.dart';
+import 'index.dart';
+import 'mat.dart';
+import 'series.dart';
+
+import 'array/array.dart';
 import 'index/join_type.dart';
+import 'index/slice.dart';
+import 'index/index_int_range.dart';
 //import 'groupby/groupby.dart';
 import 'ops/ops.dart';
 //import 'stats/stats.dart';
@@ -25,6 +31,7 @@ import 'ops/ops.dart';
 import 'scalar/scalar.dart' show Scalar;
 //import java.io.OutputStream
 //import org.saddle.mat.MatCols
+import 'mat/mat_cols.dart';
 
 /**
  * `Frame` is an immutable container for 2D data which is indexed along both axes
@@ -124,16 +131,21 @@ import 'scalar/scalar.dart' show Scalar;
  */
 class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
     T> /*extends NumericOps<Frame<RX, CX, T>> with Serializable*/ {
-  Frame(
-      /*private[saddle]*/ MatCols<T> values,
-      Index<RX> rowIx,
-      Index<CX> colIx) {
-    require(values.numRows == rowIx.length, "Row index length is incorrect");
-    require(values.numCols == colIx.length, "Col index length is incorrect");
+  /*private[saddle]*/ MatCols<T> values;
+  Index<RX> rowIx;
+  Index<CX> colIx;
+
+  Frame(this.values, this.rowIx, this.colIx) {
+    if (values.numRows != rowIx.length) {
+      throw new ArgumentError("Row index length is incorrect");
+    }
+    if (values.numCols != colIx.length) {
+      throw new ArgumentError("Col index length is incorrect");
+    }
   }
 
-  /*private*/ Option<Mat<T>> cachedMat = null;
-  /*private*/ Option<MatCols<T>> cachedRows = null;
+  /*private Option<*/ Mat<T> cachedMat = null;
+  /*private Option<*/ MatCols<T> cachedRows = null;
 
   /**
    * Number of rows in the Frame
@@ -169,19 +181,20 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    * @param slice Slice containing appropriate key bounds
    */
   Frame<RX, CX, T> colSlice(Slice<CX> slice) {
-    var a, b = slice(colIx);
-    Frame(values.slice(a, b), rowIx, colIx.sliceBy(slice));
+    List res = slice(colIx);
+    return new Frame(
+        values. /*slice*/ sublist(res[0], res[1]), rowIx, colIx.sliceBy(slice));
   }
 
   /**
    * Given an array of column keys, slice out the corresponding column(s)
    * @param keys Array of keys
    */
-  Frame<RX, CX, T> col(Array<CX> keys) {
+  Frame<RX, CX, T> col(List<CX> keys) {
     if (values.numCols == 0) {
-      return new Frame.empty<RX, CX, T>();
+      return new Frame<RX, CX, T>.empty();
     } else {
-      val locs = array.filter[Int](_ != -1)(colIx(keys));
+      var locs = array.filter /*[Int]*/ ((a) => a != -1, colIx(keys));
       colAt(locs);
     }
   }
@@ -193,9 +206,9 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    * @param inclusive Whether to include 'to' key; true by default
    */
   Frame<RX, CX, T> colSliceBy(CX from, CX to, [bool inclusive = true]) {
-//    val tmp = Series(values : _*).setIndex(colIx);
-    val res = tmp.sliceBy(from, to, inclusive);
-    Frame(res.values.toArray, rowIx, res.index);
+    var tmp = new Series(values /*: _**/).setIndex(colIx);
+    var res = tmp.sliceByRange(from, to, inclusive);
+    return new Frame(res.values.toArray, rowIx, res.index);
   }
 
   // -----------------------------------------
@@ -205,7 +218,7 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    * Access frame column at a particular integer offset
    * @param loc integer offset
    */
-  Series<RX, T> colAt(int loc) => Series(values(loc), rowIx);
+  Series<RX, T> colAt(int loc) => new Series(values[loc], rowIx);
 
   /**
    * Access frame columns at a particular integer offsets
@@ -217,11 +230,11 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    * Access frame columns at a particular integer offsets
    * @param locs an array of integer offsets
    */
-  Frame<RX, CX, T> colAtTake(Array<int> locs) {
+  Frame<RX, CX, T> colAtTake(List<int> locs) {
     if (values.numCols == 0) {
-      Frame.empty /*<RX, CX, T>*/ ();
+      return Frame.empty /*<RX, CX, T>*/ ();
     } else {
-      Frame(values.take(locs), rowIx, colIx.take(locs));
+      return new Frame(values.take(locs), rowIx, colIx.take(locs));
     }
   }
 
@@ -230,9 +243,10 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    * @param slice a slice specifier
    */
   Frame<RX, CX, T> colAtSlice(Slice<int> slice) {
-    val idx = IndexIntRange(numCols);
-    val pair = slice(idx);
-    Frame(values.slice(pair._1, pair._2), rowIx, colIx.slice(pair._1, pair._2));
+    var idx = new IndexIntRange(numCols);
+    var pair = slice(idx);
+    return new Frame(
+        values.slice(pair._1, pair._2), rowIx, colIx.slice(pair._1, pair._2));
   }
 
   /**

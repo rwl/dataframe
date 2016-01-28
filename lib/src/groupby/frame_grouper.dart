@@ -21,8 +21,7 @@ library saddle.groupby;
 /**
  * Helper class to do combine or transform after a groupBy
  */
-class FrameGrouper<Z, X, Y, T>/*[Z: ST: ORD, X: ST: ORD, Y: ST: ORD, T: ST]*/ {
-
+class FrameGrouper<Z, X, Y, T> /*[Z: ST: ORD, X: ST: ORD, Y: ST: ORD, T: ST]*/ {
   FrameGrouper(Index<Z> ix, Frame<X, Y, T> frame, [bool sorted = true]);
 
   /*private lazy val uniq: Array<Z> = {
@@ -37,21 +36,22 @@ class FrameGrouper<Z, X, Y, T>/*[Z: ST: ORD, X: ST: ORD, Y: ST: ORD, T: ST]*/ {
 
 //  Array/*<(Z, Array<int>)>*/ groups() => for (k <- keys) yield (k, ix.get(k))
 
-  Frame<Z, Y, U> combine/*[U: ST]*/(U fn(Z arg1, Vec<T> arg2)) =>
-    new Frame(frame.values.map(SeriesGrouper.combine(ix, keys, _, fn)))// : _*)
+  Frame<Z, Y, U> combine /*[U: ST]*/ (U fn(Z arg1, Vec<T> arg2)) => new Frame(
+          frame.values.map(SeriesGrouper.combine(ix, keys, _, fn))) // : _*)
       .setRowIndex(keys)
       .setColIndex(frame.colIx);
 
   // less powerful combine, ignores group key
-  Frame<Z, Y, U> combine/*[U: ST: ORD]*/(U fn(Vec<T> arg)) =>
-    combine( (k, v) => fn(v) );
+  Frame<Z, Y, U> combineIgnoreKey /*[U: ST: ORD]*/ (U fn(Vec<T> arg)) =>
+      combine((k, v) => fn(v));
 
-  Frame<X, Y, U> transform/*[U: ST]*/(Vec<U> fn(Z arg1, Vec<T> arg2)) =>
-    Frame(frame.values.map(SeriesGrouper.transform(_, groups, fn)), frame.rowIx, frame.colIx);
+  Frame<X, Y, U> transform /*[U: ST]*/ (Vec<U> fn(Z arg1, Vec<T> arg2)) =>
+      Frame(frame.values.map(SeriesGrouper.transform(_, groups, fn)),
+          frame.rowIx, frame.colIx);
 
   // less powerful transform, ignores group key
-  Frame<X, Y, U> transform/*[U: ST]*/(Vec<U> fn(Vec<T> arg))) =>
-    transform( (k, v) => fn(v) );
+  Frame<X, Y, U> transformIgnoreKey /*[U: ST]*/ (Vec<U> fn(Vec<T> arg)) =>
+      transform((k, v) => fn(v));
 }
 
 //object FrameGrouper {

@@ -16,15 +16,24 @@
 
 library saddle;
 
+import 'vec.dart';
+import 'index.dart';
+import 'frame.dart';
+
+import 'array/array.dart';
 //import 'util/concat.dart' show Promoter;
-import 'ops/ops.dart';
-import 'vec/vec.dart';
+//import 'ops/ops.dart';
+//import 'vec/vec.dart';
 //import 'stats/stats.dart';
 import 'index/join_type.dart';
+import 'index/index_int_range.dart';
+import 'index/slice.dart';
 //import 'groupby/groupby.dart';
 import 'scalar/scalar.dart';
+import 'scalar/scalar_tag.dart';
 //import java.io.OutputStream
 //import 'mat/mat_cols.dart' show MatCols;
+import 'vec/vec_impl.dart';
 
 /**
  * `Series` is an immutable container for 1D homogeneous data which is indexed by a
@@ -99,11 +108,20 @@ import 'scalar/scalar.dart';
  * @tparam T Type of elements in the values array, for which there must be an implicit ST
  */
 class Series<X,
-    T extends ScalarTag> /*[X: ST: ORD, T: ST] extends NumericOps<Series<X, T>> with Serializable*/ {
-  Series(Vec<T> values, Index<X> index) {
-//    require(values.length == index.length,
-//         "Values length %d != index length %d" format (values.length, index.length));
+    T> /*[X: ST: ORD, T: ST] extends NumericOps<Series<X, T>> with Serializable*/ {
+  final Vec<T> values;
+  final Index<X> index;
+
+  Series(this.values, this.index) {
+    if (values.length != index.length) {
+      throw new ArgumentError(
+          "Values length ${values.length} != index length ${index.length}");
+    }
+    this.sx = index.scalarTag;
+    this.st = values.scalarTag;
   }
+
+  ScalarTag sx, st;
 
   /**
    * The length shared by both the index and the values array
@@ -121,19 +139,19 @@ class Series<X,
    * Access an unboxed element of a Series at a single location
    * @param loc offset into Series
    */
-  T raw(int loc) => values(loc);
+  T raw(int loc) => values[loc];
 
   /**
    * Access a boxed element of a Series at a single location
    * @param loc offset into Series
    */
-  Scalar<T> at(int loc) => values(loc);
+  Scalar<T> at(int loc) => new Scalar(values[loc], st);
 
   /**
    * Access multiple locations of a Series, returning a new Series comprising those locations
    * @param locs Array of int offsets into Series
    */
-  Series<X, T> atTake(Array<int> locs) => take(locs);
+  Series<X, T> atTake(List<int> locs) => take(locs);
 
   /**
    * Access multiple locations of a Series, returning a new Series comprising those locations
@@ -151,11 +169,11 @@ class Series<X,
    * @param key Key on which to match
    */
   Scalar<T> firstValue(X key) {
-    val loc = index.getFirst(key);
+    var loc = index.getFirst(key);
     if (loc == -1) {
-      NA;
+      return NA;
     } else {
-      at(loc);
+      return at(loc);
     }
   }
 
@@ -165,11 +183,11 @@ class Series<X,
    * @return
    */
   Scalar<T> get(X key) {
-    val loc = index.getFirst(key);
+    var loc = index.getFirst(key);
     if (loc == -1) {
-      NA;
+      return NA;
     } else {
-      at(loc);
+      return at(loc);
     }
   }
 
@@ -183,11 +201,11 @@ class Series<X,
    * @param key Key on which to match
    */
   Scalar<T> lastValue(X key) {
-    val loc = index.getLast(key);
+    var loc = index.getLast(key);
     if (loc == -1) {
-      NA;
+      return NA;
     } else {
-      at(loc);
+      return at(loc);
     }
   }
 
@@ -197,13 +215,13 @@ class Series<X,
    * Access a boxed element of a Series index at a single location
    * @param loc offset into Series
    */
-  Scalar<X> keyAt(int loc) => index.raw(loc);
+  Scalar<X> keyAt(int loc) => new Scalar(index.raw(loc), sx);
 
   /**
    * Access a multiple locations of a Series index, returning a new Index
    * @param locs array of int offset into Index
    */
-  Index<X> keyAtTake(Array<int> locs) => index.take(locs);
+  Index<X> keyAtTake(List<int> locs) => index.take(locs);
 
   /**
    * Access a multiple locations of a Series index, returning a new Index
@@ -228,7 +246,7 @@ class Series<X,
    * whose key-value pairs maintain the original ordering.
    * @param keys Array of keys
    */
-  Series<X, T> apply(Array<X> keys) => take(index(keys));
+  Series<X, T> apply(List<X> keys) => take(index(keys));
 
   /**
    * Extract a Series corresponding to those keys provided. Returns a new Series
@@ -252,8 +270,10 @@ class Series<X,
    * @param newIx Index of the result series
    */
   Series<X, T> reindex(Index<X> newIx) {
-    val ixer = index.getIndexer(newIx);
-    ixer.map((a) => Series(values.take(a), newIx)).getOrElse(this);
+    var ixer = index.getIndexer(newIx);
+    return ixer != null
+        ? ixer.map((a) => new Series(values.take([a]), newIx))
+        : this;
   }
 
   /**
@@ -271,14 +291,15 @@ class Series<X,
    * @param newIx A new Index
    * @tparam Y Type of elements of new Index
    */
-  Series<Y, T> setIndex /*[Y: ST: ORD]*/ (Index<Y> newIx) =>
-      Series(values, newIx);
+  Series /*<Y, T>*/ setIndex /*[Y: ST: ORD]*/ (Index /*<Y>*/ newIx) =>
+      new Series(values, newIx);
 
   /**
    * Create a new Series whose values are the same, but whose Index has been changed
    * to the bound [0, length - 1), as in an array.
    */
-  Series<int, T> resetIndex() => Series(values, IndexIntRange(values.length));
+  Series<int, T> resetIndex() =>
+      new Series(values, new IndexIntRange(values.length));
 
   /**
    * Map a function over the index, resulting in a new Series
@@ -286,8 +307,10 @@ class Series<X,
    * @param fn The function X => Y with which to map
    * @tparam Y Result type of index, ie Index[Y]
    */
-  Series<Y, T> mapIndex /*[Y: ST: ORD]*/ (Y fn(X arg)) =>
-      Series(values, index.map(fn));
+  Series /*<Y, T>*/ mapIndex /*[Y: ST: ORD]*/ (
+          /*Y*/ dynamic fn(X arg),
+          ScalarTag sy) =>
+      new Series(values, index.map(fn, sy));
 
   /**
    * Concatenate two Series instances together whose indexes share the same type of
@@ -308,7 +331,7 @@ class Series<X,
   /**
    * Additive inverse of Series with numeric elements
    */
-  Series<X, T> operator -() => Series(-values, index);
+  Series<X, T> operator -() => new Series(-values, index);
 
   // slicing
 
@@ -319,9 +342,9 @@ class Series<X,
    * @param to Ending offset key
    */
   Series<X, T> sliceByRange(X from, X to, [bool inclusive = true]) {
-    val start = index.lsearch(from);
-    val end = inclusive ? index.rsearch(to) : index.lsearch(to);
-    Series(values.slice(start, end), index.slice(start, end));
+    var start = index.lsearch(from);
+    var end = inclusive ? index.rsearch(to) : index.lsearch(to);
+    return new Series(values.slice(start, end), index.slice(start, end));
   }
 
   /**
@@ -331,8 +354,9 @@ class Series<X,
    * @param rng An IRange which computes the bound locations
    */
   Series<X, T> sliceBy(Slice<X> rng) {
-    val start, end = rng(index);
-    Series(values.slice(start, end), index.slice(start, end));
+    var res = rng(index);
+    var start = res[0], end = res[1];
+    return new Series(values.slice(start, end), index.slice(start, end));
   }
 
   /**
@@ -342,7 +366,8 @@ class Series<X,
    * @param until Ending offset
    */
   Series<X, T> slice(int from, int until, [int stride = 1]) {
-    Series(values.slice(from, until, stride), index.slice(from, until, stride));
+    return new Series(
+        values.slice(from, until, stride), index.slice(from, until, stride));
   }
 
   /**
@@ -350,20 +375,20 @@ class Series<X,
    * at those offsets.
    * @param locs Array of int offsets
    */
-  Series<X, T> take(Array<int> locs) =>
-      Series(values.take(locs), index.take(locs));
+  Series<X, T> take(List<int> locs) =>
+      new Series(values.take(locs), index.take(locs));
 
   /**
    * Extract at most the first n elements of the Series
    * @param n Number of elements to extract
    */
-  head(int n) => Series(values.head(n), index.head(n));
+  Series head(int n) => new Series(values.head(n), index.head(n));
 
   /**
    * Extract at most the last n elements of the Series
    * @param n number to extract
    */
-  tail(int n) => Series(values.tail(n), index.tail(n));
+  Series tail(int n) => new Series(values.tail(n), index.tail(n));
 
   /**
    * Shift the sequence of values relative to the index by some offset,
@@ -371,7 +396,7 @@ class Series<X,
    * those keys which no longer associate to a value instead map to NA.
    * @param n Number to shift
    */
-  Series<X, T> shift([int n = 1]) => Series(values.shift(n), index);
+  Series<X, T> shift([int n = 1]) => new Series(values.shift(n), index);
 
   /**
    * Replaces all NA values for which there is a non-NA value at a prior offset
@@ -383,7 +408,7 @@ class Series<X,
    * }}}
    *
    */
-  Series<X, T> pad() => Series(values.pad, index);
+  Series<X, T> pad() => new Series(values.pad(), index);
 
   /**
    * Same as above, but limits the amount of padding to N observations.
@@ -393,7 +418,7 @@ class Series<X,
    * }}}
    *
    */
-  Series<X, T> padAtMost(int n) => Series(values.padAtMost(n), index);
+  Series<X, T> padAtMost(int n) => new Series(values.padAtMost(n), index);
 
   /**
    * Fills NA values in series with result of a function which acts on the index of
@@ -402,7 +427,7 @@ class Series<X,
    * @param f A function X => A to be applied at NA location
    */
   Series<X, T> fillNA(T f(X arg)) =>
-      Series(VecImpl.seriesfillNA(index.toVec, values)(f), index);
+      new Series(VecImpl.seriesfillNA(index.toVec(), values, f), index);
 
   /**
    * Creates a Series having the same values but excluding all key/value pairs in
@@ -413,7 +438,7 @@ class Series<X,
   /**
    * Return true if there is at least one NA value in the Series
    */
-  bool get hasNA => toVec.hasNA;
+  bool get hasNA => toVec().hasNA;
 
   // filtering
 
@@ -421,50 +446,55 @@ class Series<X,
    * Create a new Series that, wherever the mask Vec is true, is masked with NA
    * @param m Mask Vec[Boolean]
    */
-  Series<X, T> mask(Vec<bool> m) => Series(values.mask(m), index);
+  Series<X, T> mask(Vec<bool> m) => new Series(values.mask(m), index);
 
   /**
    * Create a new Series that, whenever the mask predicate function evaluates to
    * true on a value, is masked with NA
    * @param f Function from T to Boolean
    */
-  Series<X, T> maskFn(bool f(T arg)) => Series(values.mask(f), index);
+  Series<X, T> maskFn(bool f(T arg)) => new Series(values.maskFn(f), index);
 
   /**
    * Create a new Series that, whenever the mask predicate function evaluates to
    * true on a key, is masked with NA
    * @param f Function from X to Boolean
    */
-  Series<X, T> maskIx(bool f(X arg)) => mask(index.toVec.map(f));
+  Series<X, T> maskIx(bool f(X arg)) =>
+      mask(index.toVec().map(f, ScalarTag.stBool));
 
   /**
    * Return Series whose values satisfy a predicate function
    * @param pred Predicate function from T => Boolean
    */
-  Series<X, T> filter(bool pred(T arg)) => where(values.map(pred));
+  Series<X, T> filter(bool pred(T arg)) =>
+      where(values.map(pred, ScalarTag.stBool));
 
   /**
    * Return Series whose index keys satisfy a predicate function
    * @param pred Predicate function from X => Boolean
    */
-  Series<X, T> filterIx(bool pred(X arg)) => where(index.toVec.map(pred));
+  Series<X, T> filterIx(bool pred(X arg)) =>
+      where(index.toVec().map(pred, ScalarTag.stBool));
 
   /**
    * Return Series whose offets satisfy a predicate function
    * @param pred Predicate function from Int => Boolean
    */
-  filterAt(bool pred(int arg)) =>
-      Series(values.filterAt(pred), Index(index.toVec.filterAt(pred)));
+  Series filterAt(bool pred(int arg)) => new Series(values.filterAt(pred),
+      new Index(index.toVec().filterAt(pred).toArray(), sx));
 
   /**
    * Return Series whose keys and values are chosen via a Vec[Boolean] or a
    * Series[_, Boolean] where the latter contains a true value.
    * @param pred Series[_, Boolean] (or Vec[Boolean] which will implicitly convert)
    */
-  Series<X, T> where(Series /*[_, Boolean]*/ pred) {
-    val newVals = VecImpl.where(this.values)(pred.values.toArray);
-    val newIdx = VecImpl.where(index.toVec)(pred.values.toArray);
-    Series(newVals, Index(newIdx));
+  Series<X, T> where(Vec<bool> /*Series [_, Boolean]*/ pred) {
+//    var newVals = VecImpl.where(this.values)(pred.values.toArray);
+//    var newIdx = VecImpl.where(index.toVec)(pred.values.toArray);
+    var newVals = VecImpl.where(this.values, pred.toArray());
+    var newIdx = VecImpl.where(index.toVec(), pred.toArray());
+    return new Series(newVals, new Index(newIdx.toArray(), sx));
   }
 
   // searching
@@ -481,7 +511,7 @@ class Series<X,
    * predicate function.
    * @param pred Function from T to Boolean
    */
-  Index<X> findKey(bool pred(T arg)) => index.take(find(pred));
+  Index<X> findKey(bool pred(T arg)) => index.take(find(pred).toArray());
 
   /**
    * Find the first int offset (or -1 if none) where a value of the Series satisfies
@@ -496,32 +526,36 @@ class Series<X,
    * @param pred Function from T to Boolean
    */
   Scalar<X> findOneKey(bool pred(T arg)) {
-    val loc = findOne(pred);
+    var loc = findOne(pred);
     if (loc == -1) {
-      NA;
+      return NA;
     } else {
-      keyAt(loc);
+      return keyAt(loc);
     }
   }
 
   /**
    * Return key corresponding to minimum value in series
    */
-  Scalar<X> minKey(/*implicit*/ NUM<T> num_, ORD<T> ord) {
-//    array.argmin(values.toArray) match {
-//      case -1     => NA
-//      case _  @ i => index.at(i)
-//    }
+  Scalar<X> minKey(/*implicit NUM<T> num_, ORD<T> ord*/) {
+    var i = array.argmin(values.toArray(), st);
+    if (i == -1) {
+      return NA;
+    } else {
+      return index[i];
+    }
   }
 
   /**
    * Return key corresponding to maximum value in series
    */
-  Scalar<X> maxKey(/*implicit*/ NUM<T> num_, ORD<T> ord) {
-//    array.argmax(values.toArray) match {
-//      case -1     => NA
-//      case _  @ i => index.at(i)
-//    }
+  Scalar<X> maxKey(/*implicit NUM<T> num_, ORD<T> ord*/) {
+    var i = array.argmax(values.toArray(), st);
+    if (i == -1) {
+      return NA;
+    } else {
+      return index[i];
+    }
   }
 
   /**
@@ -547,14 +581,14 @@ class Series<X,
    * @tparam U The type of the resulting values
    */
   Series<Y, U> map /*[Y: ST: ORD, U: ST]*/ (/*(Y, U)*/ f(/*(X, T)*/ arg)) =>
-      Series(toSeq.map(f)); // : _*)
+      new Series(toSeq().map(f)); // : _*)
 
   /**
    * Map and then flatten over the key-value pairs of the Series, resulting in a new Series.
    */
   Series<Y, U> flatMap /*[Y: ST: ORD, U: ST]*/ (
           Traversable /*<(Y, U)>*/ f(/*(X, T)*/ arg)) =>
-      Series(toSeq.flatMap(f)); // : _*)
+      new Series(toSeq.flatMap(f)); // : _*)
 
   /**
    * Map over the values of the Series, resulting in a new Series. Applies a function
@@ -565,7 +599,7 @@ class Series<X,
    * @tparam U The type of the resulting values
    */
   Series<X, U> mapValues /*[U: ST]*/ (U f(T arg)) =>
-      Series(values.map(f), index);
+      new Series(values.map(f), index);
 
   /**
    * Left scan over the values of the Series, as in scala collections library, but
@@ -577,7 +611,7 @@ class Series<X,
    * @tparam U Result type of function
    */
   scanLeft /*[U: ST]*/ (U init) /*(U f((U, T) arg))*/ =>
-      Series(values.scanLeft(init)(f), index);
+      new Series(values.scanLeft(init)(f), index);
 
   // safe cast operation
 
@@ -593,25 +627,25 @@ class Series<X,
   Series<X, V> joinMap /*[U: ST, V: ST]*/ (Series<X, U> other,
       [JoinType how = JoinType.LeftJoin]) /*(V f((T, U) arg))*/ {
     var l, r = align(other, how);
-    Series(VecImpl.zipMap(l.values, r.values)(f), l.index);
+    return new Series(VecImpl.zipMap(l.values, r.values)(f), l.index);
   }
 
   /**
    * Create a new Series whose key/value entries are sorted according to the values of the Series.
    * @param ev Implicit evidence of ordering for T
    */
-  Series<X, T> sorted(/*implicit*/ ORD<T> ev) =>
-      take(array.argsort(values.toArray));
+  Series<X, T> sorted(/*implicit ORD<T> ev*/) =>
+      take(array.argsort(values.toArray(), st));
 
   /**
    * Create a new Series whose key/value entries are sorted according to the keys (index values).
    */
-  Series<X, T> sortedIx() => (index.isMonotonic) ? this : take(index.argSort);
+  Series<X, T> sortedIx() => index.isMonotonic ? this : take(index.argSort());
 
   /**
    * Create a new Series whose values and index keys are both in reversed order
    */
-  Series<X, T> get reversed => Series(values.reversed, index.reversed);
+  Series<X, T> get reversed => new Series(values.reversed, index.reversed);
 
   /**
    * Construct a [[org.saddle.groupby.SeriesGrouper]] with which further computations, such
@@ -650,17 +684,17 @@ class Series<X,
    */
   Series<X, B> rolling /*[B: ST]*/ (int winSz, B f(Series<X, T> arg)) {
     if (winSz <= 0) {
-      new Series.empty<X, B>();
+      return new Series<X, B>.empty();
     } else {
-      val len = values.length;
-      val win = (winSz > len) ? len : winSz;
-      val buf = new Array /*[B]*/ (len - win + 1);
+      var len = values.length;
+      var win = (winSz > len) ? len : winSz;
+      var buf = new List /*[B]*/ (len - win + 1);
       var i = win;
       while (i <= len) {
         buf[i - win] = f(slice(i - win, i));
         i += 1;
       }
-      Series(Vec(buf), index.slice(win - 1, len));
+      return new Series(new Vec(buf), index.slice(win - 1, len));
     }
   }
 
@@ -668,14 +702,15 @@ class Series<X,
    * Split Series into two series at position i
    * @param i Position at which to split Series
    */
-  /*(Series<X, T>, Series<X, T>)*/ splitAt(int i) =>
-      [slice(0, i), slice(i, length)];
+  Splitted<X, T> /*(Series<X, T>, Series<X, T>)*/ splitAt(int i) =>
+      new Splitted._(slice(0, i), slice(i, length));
 
   /**
    * Split Series into two series at key x
    * @param k Key at which to split Series
    */
-  /*(Series<X, T>, Series<X, T>)*/ splitBy(X k) => splitAt(index.lsearch(k));
+  Splitted<X, T> /*(Series<X, T>, Series<X, T>)*/ splitBy(X k) =>
+      splitAt(index.lsearch(k));
 
   // ----------------------------
   // reshaping
@@ -721,36 +756,36 @@ class Series<X,
    */
   Frame<O1, O2, T> pivot /*[O1, O2]*/ (/*implicit*/ Splitter<X, O1, O2> split,
       ORD<O1> ord1, ORD<O2> ord2, ST<O1> m1, ST<O2> m2) {
-    val lft, rgt = split(index);
+    var lft, rgt = split(index);
 
-    val rix = lft.uniques;
-    val cix = rgt.uniques;
+    var rix = lft.uniques;
+    var cix = rgt.uniques;
 
-    val grpr = IndexGrouper(rgt, sorted: false);
-    val grps =
+    var grpr = IndexGrouper(rgt, sorted: false);
+    var grps =
         grpr.groups; // Group by pivot label. Each unique label will get its
     //  own column
     if (length == 0) {
-      new Frame.empty<O1, O2, T>();
+      return new Frame.empty<O1, O2, T>();
     } else {
       var loc = 0;
-      val result =
+      var result =
           Array.ofDim[Vec[T]](cix.length); // accumulates result columns
 
       for (var /*(k, taker)*/ arg in grps) {
         // For each pivot label grouping,
-        val gIdx = lft.take(taker); //   use group's (lft) row index labels
-        val ixer = rix.join(gIdx); //   to compute map to final (rix) locations;
-        val vals = values
+        var gIdx = lft.take(taker); //   use group's (lft) row index labels
+        var ixer = rix.join(gIdx); //   to compute map to final (rix) locations;
+        var vals = values
             .take(taker); // Take values corresponding to current pivot label
-        val v = ixer.rTake
+        var v = ixer.rTake
             .map(vals.take(_))
             .getOrElse(vals); //   map values to be in correspondence to rix
         result[loc] = v; //   and save resulting col vec in array.
         loc += 1; // Increment offset into result array
       }
 
-      Frame(result, rix, Index(grpr.keys));
+      return new Frame(result, rix, new Index(grpr.keys));
     }
   }
 
@@ -774,10 +809,10 @@ class Series<X,
    */
   Frame<X, Int, T> join(Series<X, T> other,
       [JoinType how = JoinType.LeftJoin]) {
-    val indexer = this.index.join(other.index, how);
+    var indexer = this.index.join(other.index, how);
 //    val lseq = indexer.lTake.map(this.values.take(_)) getOrElse this.values;
 //    val rseq = indexer.rTake.map(other.values.take(_)) getOrElse other.values;
-    Frame(MatCols(lseq, rseq), indexer.index, Array(0, 1));
+    return new Frame(MatCols(lseq, rseq), indexer.index, Array(0, 1));
   }
 
   /**
@@ -794,7 +829,7 @@ class Series<X,
     val indexer = this.index.join(other.index, how);
 //    val lft = indexer.lTake.map(this.values.take(_)) getOrElse this.values;
 //    val rgt = indexer.rTake.map(other.values.take(_)) getOrElse other.values;
-    Panel(Seq(lft, rgt), indexer.index, IndexIntRange(2));
+    return new Panel(Seq(lft, rgt), indexer.index, IndexIntRange(2));
   }
 
   /**
@@ -809,7 +844,7 @@ class Series<X,
    */
   Frame<X, int, T> joinF(Frame<X, _, T> other,
       [JoinType how = JoinType.LeftJoin]) {
-    val tmpFrame = other.joinS(this, how);
+    var tmpFrame = other.joinS(this, how);
 //    Frame(tmpFrame.values.last +: tmpFrame.values.slice(0, tmpFrame.values.length - 1),
 //          tmpFrame.rowIx, IndexIntRange(other.colIx.length + 1));
   }
@@ -826,7 +861,7 @@ class Series<X,
    */
   Frame<X, Int, Any> hjoinF(Frame<X, _, _> other,
       [JoinType how = JoinType.LeftJoin]) {
-    val tmpFrame = other.joinAnyS(this, how);
+    var tmpFrame = other.joinAnyS(this, how);
 //    Panel(tmpFrame.values.last +: tmpFrame.values.slice(0, tmpFrame.values.length - 1),
 //          tmpFrame.rowIx, IndexIntRange(other.colIx.length + 1))
   }
@@ -838,12 +873,14 @@ class Series<X,
    * @param other Other series to align with
    * @param how How to perform the join on the indexes
    */
-  /*(Series<X, T>, Series[X, U])*/ align /*[U: ST]*/ (Series<X, U> other,
+  Aligned /*(Series<X, T>, Series[X, U])*/ align /*[U: ST]*/ (
+      Series<X, U> other,
       [JoinType how = JoinType.LeftJoin]) {
-    val indexer = this.index.join(other.index, how);
+    var indexer = this.index.join(other.index, how);
 //    val lseq = indexer.lTake.map(this.values.take(_)) getOrElse this.values;
 //    val rseq = indexer.rTake.map(other.values.take(_)) getOrElse other.values;
-    return [Series(lseq, indexer.index), Series(rseq, indexer.index)];
+    return new Aligned._(
+        new Series(lseq, indexer.index), new Series(rseq, indexer.index));
   }
 
   // ----------------------------
@@ -856,11 +893,13 @@ class Series<X,
    */
   Series<X, T> proxyWith(
       Series<X, T> proxy) /*(implicit T fn(org.saddle.scalar.NA.type arg))*/ {
-    require(proxy.index.isUnique, "Proxy index must be unique");
+    if (!proxy.index.isUnique) {
+      throw new ArgumentError("Proxy index must be unique");
+    }
 
-    this.fillNA((key) {
-      val loc = proxy.index.getFirst(key);
-      val res = (loc == -1) ? NA : proxy.raw(loc);
+    return this.fillNA((key) {
+      var loc = proxy.index.getFirst(key);
+      var res = (loc == -1) ? NA : proxy.raw(loc);
       return res;
     });
   }
@@ -876,40 +915,40 @@ class Series<X,
   /**
    * Convert Series to an indexed sequence of (key, value) pairs.
    */
-  IndexedSeq /*[(X, T)]*/ toSeq() => index.toSeq; // zip values.toSeq;
+  IndexedSeq /*[(X, T)]*/ toSeq() => zip([index.toSeq(), values.toSeq()]);
 
   String stringify([int len = 10]) {
-    val half = len / 2;
+    var half = len / 2;
 
-    val buf = new StringBuffer();
+    var buf = new StringBuffer();
 
     if (length == 0) {
       buf.write("Empty Series");
     } else {
-//      buf.append("[%d x 1]\n" format length)
+      buf.write("[$length x 1]\n");
 
-      val maxf = (List<int> a, List<String> b) =>
+      var maxf = (List<int> a, List<String> b) =>
           null; //(a zip b).map(v => v._1.max(v._2.length))
 
-      val isca = index.scalarTag;
-      val vidx = index.toVec;
-//      val idxHf = { vidx.head(half) concat vidx.tail(half) }
-      val ilens = idxHf
+      var isca = index.scalarTag;
+      var vidx = index.toVec;
+      var idxHf = vidx.head(half).concat(vidx.tail(half));
+      var ilens = idxHf
           .map(isca.strList(_))
           .foldLeft(isca.strList(vidx(0)).map(_.length))(maxf);
 
-      val vsca = values.scalarTag;
-//      val vlHf = { values.head(half) concat values.tail(half) }
-      val vlen =
+      var vsca = values.scalarTag;
+      var vlHf = values.head(half).concat(values.tail(half));
+      var vlen =
           vlHf.map(vsca.show(_)).foldLeft(2)((a, b) => math.max(a, b.length));
 
       List /*[(Int, A, B)]*/ enumZip /*[A, B]*/ (List<A> a, List<B> b) {
 //        for ( v <- (a.zipWithIndex zip b) ) yield (v._1._2, v._1._1, v._2)
       }
 
-      val sz = isca.strList(index.raw(0)).size;
+      var sz = isca.strList(index.raw(0)).size;
 
-      val prevRowLabels = Array.fill(sz)("");
+      var prevRowLabels = Array.fill(sz)("");
       resetRowLabels(int k) {
 //        for (i <- k until prevRowLabels.length) prevRowLabels(i) = ""
       }
@@ -935,7 +974,7 @@ class Series<X,
 //      (int i) => createIx(i) + " -> " + createVal(i), { resetRowLabels(0); " ... \n" }));
     }
 
-    buf.toString();
+    return buf.toString();
   }
 
   /**
@@ -947,14 +986,22 @@ class Series<X,
 //  }
 
   @override
-  int hashCode() => values.hashCode() * 31 + index.hashCode();
+  int get hashCode => values.hashCode * 31 + index.hashCode;
 
   @override
-  bool equals(other) {
-//    other match {
-//      case s: Series[_, _] => (this eq s) || (length == s.length) && index == s.index && values == s.values
-//      case _ => false
-//    }
+  bool operator ==(other) {
+    if (other is Series) {
+      var s = other as Series;
+      if (identical(this, s)) {
+        return true;
+      } else if (length != s.length) {
+        return false;
+      } else if (index == s.index && values == s.values) {
+        return true;
+      }
+    } else {
+      return false;
+    }
   }
 
   @override
@@ -974,27 +1021,19 @@ class Series<X,
    * Enrich Series with basic stats
    * @param s Series[_, T]
    */
-  static /*implicit*/ VecStats<T> seriesToStats /*[T: Vec2Stats]*/ (
-          Series /*[_, T]*/ s) =>
-      implicitly[Vec2Stats /*[T]*/].apply(s.values);
+//  static /*implicit*/ VecStats<T> seriesToStats /*[T: Vec2Stats]*/ (Series /*[_, T]*/ s) => implicitly[Vec2Stats /*[T]*/].apply(s.values);
 
   /**
    * Enrich Series with rolling stats
    * @param s Series[_, T]
    */
-  static /*implicit*/ SeriesRollingStats<X,
-      T> seriesToRollingStats /*[X: ST: ORD, T: Vec2RollingStats: ST]*/ (
-          Series<X, T> s) =>
-      new SeriesRollingStats<X, T>(s);
+//  static /*implicit*/ SeriesRollingStats<X, T> seriesToRollingStats /*[X: ST: ORD, T: Vec2RollingStats: ST]*/ (Series<X, T> s) => new SeriesRollingStats<X, T>(s);
 
   /**
    * Enrich Series with expanding stats
    * @param s Series[_, T]
    */
-  static /*implicit*/ SeriesExpandingStats<X,
-      T> seriesToExpandingStats /*[X: ST: ORD, T: Vec2ExpandingStats: ST]*/ (
-          Series<X, T> s) =>
-      new SeriesExpandingStats /*[X, T]*/ (s);
+//  static /*implicit*/ SeriesExpandingStats<X, T> seriesToExpandingStats /*[X: ST: ORD, T: Vec2ExpandingStats: ST]*/ (Series<X, T> s) => new SeriesExpandingStats /*[X, T]*/ (s);
 
   /**
    * Implicitly allow Series to be treated as a single-column Frame
@@ -1003,9 +1042,7 @@ class Series<X,
    * @tparam X Type of Index
    * @tparam T Type of values Vec
    */
-  static /*implicit*/ Frame<X, Int, T> serToFrame /*[X: ST: ORD, T: ST]*/ (
-          Series<X, T> s) =>
-      Frame(s);
+//  static /*implicit*/ Frame<X, Int, T> serToFrame /*[X: ST: ORD, T: ST]*/ (Series<X, T> s) => new Frame(s);
 
   // some pimped-on logic methods. scala.Function1 is not specialized on
   // Boolean input. not sure I care to work around this
@@ -1016,7 +1053,7 @@ class Series<X,
    * @param v Series[_, Boolean]
    */
   static /*implicit*/ serToBoolLogic(Series /*[_, Boolean]*/ v) =>
-      new Vec.vecToBoolLogic(v.toVec);
+      Vec.vecToBoolLogic(v.toVec);
 
   // factory methods
 
@@ -1045,15 +1082,15 @@ class Series<X,
    * @tparam T Type of values
    */
   factory Series.vec /*[T: ST]*/ (Vec<T> values) /*Series[Int, T]*/ =>
-      new Series<Int, T>(values, new IndexIntRange(values.length));
+      new Series<int, T>(values, new IndexIntRange(values.length));
 
   /**
    * Factory method to create a Series from a sequence of values; keys are integer offsets
    * @param values a sequence of values
    * @tparam T Type of values
    */
-  factory Series.values /*[T: ST]*/ (List<T> values) /*: Series[Int, T]*/ =>
-      new Series<Int, T>(Vec(values), new IndexIntRange(values.length));
+  factory Series.vals /*[T: ST]*/ (List<T> values) /*: Series[Int, T]*/ =>
+      new Series<int, T>(Vec(values), new IndexIntRange(values.length));
 
   /**
    * Factory method to create a Series from a sequence of key/value pairs
@@ -1063,4 +1100,15 @@ class Series<X,
    */
 //  def apply[X: ST: ORD, T: ST](values: (X, T)*): Series<X, T> =
 //    new Series<X, T>(Vec(values.map(_._2).toArray), Index(values.map(_._1).toArray))
+}
+
+class Splitted<X, T> {
+  final Series<X, T> left, right;
+  Splitted._(this.left, this.right);
+}
+
+class Aligned<X, T, U> {
+  final Series<X, T> left;
+  final Series<X, U> right;
+  Aligned._(this.left, this.right);
 }

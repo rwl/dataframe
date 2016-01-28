@@ -74,7 +74,7 @@ class IndexAny<T> /*[T: ST: ORD]*/ extends Index<T> {
   Index /*<C>*/ concat /*[B, C]*/ (Index /*<B>*/ x,
           ScalarTag scc) /*(implicit wd: Promoter[T, B, C], mc: ST[C], oc: ORD[C])*/ =>
       new Index(
-          util.Concat.append /*[T, B, C]*/ (toArray(), x.toArray_()), scc);
+          util.Concat.append /*[T, B, C]*/ (toArray_(), x.toArray_()), scc);
 
   bool get isMonotonic => _keys2map.props.monotonic;
 

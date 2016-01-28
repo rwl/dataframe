@@ -14,7 +14,7 @@
  * limitations under the License.
  **/
 
-library saddle;
+library saddle.mat;
 
 import 'dart:math' as math;
 import 'package:quiver/iterables.dart' show range;
