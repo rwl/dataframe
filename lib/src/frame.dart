@@ -16,6 +16,8 @@
 
 library saddle;
 
+import 'dart:math' as math;
+
 import 'index.dart';
 import 'mat.dart';
 import 'series.dart';
@@ -244,9 +246,9 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    */
   Frame<RX, CX, T> colAtSlice(Slice<int> slice) {
     var idx = new IndexIntRange(numCols);
-    var pair = slice(idx);
-    return new Frame(
-        values.slice(pair._1, pair._2), rowIx, colIx.slice(pair._1, pair._2));
+    List pair = slice(idx);
+    return new Frame(values.sublist /*slice*/ (pair[0], pair[1]), rowIx,
+        colIx.slice(pair[0], pair[1]));
   }
 
   /**
@@ -255,19 +257,21 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    * @param until One past ending offset
    * @param stride Optional increment between offsets
    */
-  Frame<RX, CX, T> colRange(int from, int until, [int stride = 1]) {
-    val lb = math.max(0, from);
-    val ub = math.min(numCols, until);
-    val taker = array.range(lb, ub, stride);
-    Frame(values.take(taker), rowIx, colIx.take(taker));
+  Frame<RX, CX, T> colSliceRange(int from, int until, [int stride = 1]) {
+    var lb = math.max(0, from);
+    var ub = math.min(numCols, until);
+    var taker = array.range(lb, ub, stride);
+    return new Frame(values.take(taker), rowIx, colIx.take(taker));
   }
 
   /**
    * Split Frame into two frames at column position c
    * @param c Position at which to split Frame
    */
-  /*(Frame<RX, CX, T>, Frame<RX, CX, T>)*/ colSplitAt(int c) =>
-      [colSlice(0, c), colSlice(c, numCols)];
+  SplitFrame<RX, CX, T> /*(Frame<RX, CX, T>, Frame<RX, CX, T>)*/ colSplitAt(
+          int c) =>
+      new SplitFrame<RX, CX, T>._(
+          colSliceRange(0, c), colSliceRange(c, numCols));
 
   /**
    * Split Frame into two frames at column key k
@@ -289,21 +293,22 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    * Given a Slice of type of row key, slice out corresponding row(s)
    * @param slice Slice containing appropriate key bounds
    */
-  Frame<RX, CX, T> row(Slice<RX> slice) {
-    val a, b = slice(rowIx);
-    Frame(values.map((v) => v.slice(a, b)), rowIx.sliceBy(slice), colIx);
+  Frame<RX, CX, T> rowSlice(Slice<RX> slice) {
+    List res = slice(rowIx);
+    return new Frame(values.map((v) => v.slice(res[0], res[1])),
+        rowIx.sliceBy(slice), colIx);
   }
 
   /**
    * Given an array of row keys, slice out the corresponding row(s)
    * @param keys Array of keys
    */
-  Frame<RX, CX, T> rowTake(Array<RX> keys) {
+  Frame<RX, CX, T> row(List<RX> keys) {
     if (values.numRows == 0) {
-      Frame.empty(); //<RX, CX, T>;
+      return Frame.empty(); //<RX, CX, T>;
     } else {
-      val locs = array.filter[Int](_ != -1)(rowIx(keys));
-      rowAt(locs);
+      var locs = array.filter[Int](_ != -1)(rowIx(keys));
+      return rowAt(locs);
     }
   }
 
@@ -314,9 +319,9 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    * @param inclusive Whether to include 'to' key; true by default
    */
   Frame<RX, CX, T> rowSliceBy(RX from, RX to, [bool inclusive = true]) {
-    val start = rowIx.lsearch(from);
-    val end = inclusive ? rowIx.rsearch(to) : rowIx.lsearch(to);
-    Frame(
+    var start = rowIx.lsearch(from);
+    var end = inclusive ? rowIx.rsearch(to) : rowIx.lsearch(to);
+    return new Frame(
         values.map((v) => v.slice(start, end)), rowIx.slice(start, end), colIx);
   }
 
@@ -327,7 +332,7 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    * Access frame row at a particular integer offset
    * @param loc integer offset
    */
-  Series<CX, T> rowAt(int loc) => Series(rows()(loc), colIx);
+  Series<CX, T> rowAt(int loc) => new Series(rows()[loc], colIx);
 
   /**
    * Access frame rows at a particular integer offsets
@@ -339,18 +344,18 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    * Access frame rows at a particular integer offsets
    * @param locs an array of integer offsets
    */
-  Frame<RX, CX, T> rowAtTake(Array<int> locs) =>
-      Frame(values.map((v) => v.take(locs)), rowIx.take(locs), colIx);
+  Frame<RX, CX, T> rowAtTake(List<int> locs) =>
+      new Frame(values.map((v) => v.take(locs)), rowIx.take(locs), colIx);
 
   /**
    * Access frame rows specified by a slice
    * @param slice a slice specifier
    */
   Frame<RX, CX, T> rowAtSlice(Slice<int> slice) {
-    val idx = IndexIntRange(numRows);
-    val pair = slice(idx);
-    Frame(values.map(_.slice(pair._1, pair._2)), rowIx.slice(pair._1, pair._2),
-        colIx);
+    var idx = new IndexIntRange(numRows);
+    List pair = slice(idx);
+    return new Frame(values.map(_.slice(pair[0], pair[1])),
+        rowIx.slice(pair[0], pair[1]), colIx);
   }
 
   /**
@@ -359,8 +364,8 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    * @param until One past ending offset
    * @param stride Optional increment between offsets
    */
-  Frame<RX, CX, T> rowSlice(int from, int until, [int stride = 1]) {
-    Frame(values.map((v) => v.slice(from, until, stride)),
+  Frame<RX, CX, T> rowSliceRange(int from, int until, [int stride = 1]) {
+    return new Frame(values.map((v) => v.slice(from, until, stride)),
         rowIx.slice(from, until, stride), colIx);
   }
 
@@ -368,14 +373,16 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    * Split Frame into two frames at row position r
    * @param r Position at which to split Frame
    */
-  /*(Frame<RX, CX, T>, Frame<RX, CX, T>)*/ rowSplitAt(int r) =>
-      [rowSlice(0, r), rowSlice(r, numRows)];
+  SplitFrame<RX, CX, T> /*(Frame<RX, CX, T>, Frame<RX, CX, T>)*/ rowSplitAt(
+          int r) =>
+      new SplitFrame<RX, CX, T>._(rowSlice(0, r), rowSlice(r, numRows));
 
   /**
    * Split Frame into two frames at row key k
    * @param k Key at which to split Frame
    */
-  /*(Frame<RX, CX, T>, Frame<RX, CX, T>)*/ rowSplitBy(RX k) =>
+  SplitFrame<RX, CX, T> /*(Frame<RX, CX, T>, Frame<RX, CX, T>)*/ rowSplitBy(
+          RX k) =>
       rowSplitAt(rowIx.lsearch(k));
 
   // --------------------------------------------
@@ -387,31 +394,30 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    * @param cix A col slice
    */
   Frame<RX, CX, T> applySlice(Slice<RX> rix, Slice<CX> cix) =>
-      col(cix).row(rix);
+      colSlice(cix).rowSlice(rix);
 
   /**
    * Slice frame by row slice and array of column keys
    * @param rix A row slice
    * @param cix An array of column keys
    */
-  Frame<RX, CX, T> applySliceArray(Slice<RX> rix, Array<CX> cix) =>
-      col(cix).row(rix);
+  Frame<RX, CX, T> applySliceArray(Slice<RX> rix, List<CX> cix) =>
+      col(cix).rowSlice(rix);
 
   /**
    * Slice frame by array of row keys and a col slice
    * @param rix An array of row keys
    * @param cix A col slice
    */
-  Frame<RX, CX, T> applyArraySlice(Array<RX> rix, Slice<CX> cix) =>
-      col(cix).row(rix);
+  Frame<RX, CX, T> applyArraySlice(List<RX> rix, Slice<CX> cix) =>
+      colSlice(cix).row(rix);
 
   /**
    * Slice from by an array of row keys and an array of col keys
    * @param rix An array of row keys
    * @param cix An array of col keys
    */
-  Frame<RX, CX, T> applyArray(Array<RX> rix, Array<CX> cix) =>
-      col(cix).row(rix);
+  Frame<RX, CX, T> applyArray(List<RX> rix, List<CX> cix) => col(cix).row(rix);
 
   // -----------------------------------------
   // access grid by particular location(s)
@@ -428,35 +434,37 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    * @param r Array of row offsets
    * @param c Array of col offsets
    */
-  Frame<RX, CX, T> atTake(Array<int> r, Array<int> c) => rowAt(r).colAt(c);
+  Frame<RX, CX, T> atTake(List<int> r, List<int> c) =>
+      rowAtTake(r).colAtTake(c);
 
   /**
    * Access a slice of the Frame by integer offsets
    * @param r Array of row offsets
    * @param c Integer col offset
    */
-  Series<RX, T> atTakeCol(Array<int> r, int c) => rowAt(r).colAt(c);
+  Series<RX, T> atTakeCol(List<int> r, int c) => rowAtTake(r).colAt(c);
 
   /**
    * Access a slice of the Frame by integer offsets
    * @param r Integer row offset
    * @param c Array of col offsets
    */
-  Series<CX, T> atTakeRow(int r, Array<int> c) => colAt(c).rowAt(r);
+  Series<CX, T> atTakeRow(int r, List<int> c) => colAtTake(c).rowAt(r);
 
   /**
    * Access a slice of the Frame by Slice parameters
    * @param r Slice to apply to rows
    * @param c Slice to apply to cols
    */
-  Frame<RX, CX, T> atSlice(Slice<int> r, Slice<int> c) => rowAt(r).colAt(c);
+  Frame<RX, CX, T> atSlice(Slice<int> r, Slice<int> c) =>
+      rowAtSlice(r).colAtSlice(c);
 
   /**
    * Access the raw (unboxed) value at an offset within the Frame
    * @param r Integer row offset
    * @param c Integer col offset
    */
-  T raw(int r, int c) => values(r, c);
+  T raw(int r, int c) => values.apply_(r, c);
 
   // -----------------------------------------
   // re-index frame; non-existent keys map to NA
@@ -2026,4 +2034,9 @@ class Panel {
 //      }
 //    }
 //  }
+}
+
+class SplitFrame<RX, CX, T> {
+  final Frame<RX, CX, T> left, right;
+  SplitFrame._(this.left, this.right);
 }
