@@ -14,7 +14,7 @@
  * limitations under the License.
  **/
 
-library saddle.scalar.bool;
+library saddle.scalar.scalar_tag_bool;
 
 //import org.saddle._
 //import org.saddle.vec.VecBool

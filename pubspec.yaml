@@ -1,5 +1,6 @@
 name: dataframe
 dependencies:
   collection: any
+  intl: any
   quiver: any
   test: any

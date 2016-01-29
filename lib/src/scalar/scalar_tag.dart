@@ -30,6 +30,8 @@ import '../array/sorter.dart';
 
 import 'scalar_tag_int.dart' as st_int;
 import 'scalar_tag_double.dart' as st_dbl;
+import 'scalar_tag_bool.dart' as st_bool;
+import 'scalar_tag_time.dart' as st_time;
 
 /**
  * Typeclass definition for scalar tags. A ScalarTag contains important meta-data regarding
@@ -88,13 +90,13 @@ abstract class ScalarTag<T> /*[@spec(Boolean, Int, Long, Float, Double) T]*/
 //object ScalarTag extends ScalarTagImplicits {
 //  /*implicit*/ static final ScalarTag stChar = ScalarTagChar;
 //  /*implicit*/ static final ScalarTag stByte = ScalarTagByte;
-  /*implicit*/ static final ScalarTag stBool = ScalarTagBool;
+  /*implicit*/ static final ScalarTag stBool = st_bool.ScalarTagBool;
 //  /*implicit*/ static final ScalarTag stShort = ScalarTagShort;
   /*implicit*/ static final ScalarTag stInt = st_int.ScalarTagInt;
 //  /*implicit*/ static final ScalarTag stFloat = ScalarTagFloat;
 //  /*implicit*/ static final ScalarTag stLong = ScalarTagLong;
   /*implicit*/ static final ScalarTag stDouble = st_dbl.ScalarTagDouble;
-  /*implicit*/ static final ScalarTag stTime = ScalarTagTime;
+  /*implicit*/ static final ScalarTag stTime = st_time.ScalarTagTime;
 }
 
 /*abstract class ScalarTagImplicits extends ScalarTagImplicitsL1 {
@@ -144,7 +146,7 @@ abstract class CouldBeNumber<
 
 abstract class SpecializedFactory<
     T> /*[@spec(Boolean, Int, Long, Float, Double) T]*/ {
-  Buffer<T> makeBuf([int sz = Buffer.INIT_CAPACITY]);
+//  Buffer<T> makeBuf([int sz = Buffer.INIT_CAPACITY]);
   Locator<T> makeLoc([int sz = Buffer.INIT_CAPACITY]);
   Vec<T> makeVec(List<T> arr);
   Mat<T> makeMat(int r, int c, List<T> arr);
@@ -164,7 +166,7 @@ abstract class SpecializedFactory<
       if (r == 0) {
         return st.makeMat(0, 0, []);
       } else {
-        if (arr.fold(true, (a, b) => a && b.length == r)) {
+        if (!arr.fold(true, (a, Vec<T> b) => a && b.length == r)) {
           throw new ArgumentError("All vec inputs must have the same length");
         }
         return altMatConstructor(r, c, arr, st);

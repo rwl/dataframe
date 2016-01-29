@@ -14,7 +14,7 @@
  * limitations under the License.
  **/
 
-library saddle.locator;
+library saddle.locator.int;
 
 //import it.unimi.dsi.fastutil.ints.{Int2IntLinkedOpenHashMap, Int2IntOpenHashMap}
 

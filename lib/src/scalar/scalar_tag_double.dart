@@ -24,12 +24,22 @@ library saddle.scalar;
 //import org.saddle.locator.LocatorDouble
 //import org.saddle.array.Sorter
 
+import 'package:intl/intl.dart';
+
+import '../array/array.dart';
 import '../vec.dart';
 import '../vec/vec_double.dart';
+import '../mat.dart';
+import '../mat/mat_double.dart';
 import '../buffer.dart';
 import '../array/sorter.dart';
+import '../index.dart';
+import '../index/index_double.dart';
+import '../locator/locator.dart';
 
 import 'scalar_tag.dart';
+
+final NumberFormat _fmt = new NumberFormat();
 
 final _ScalarTagDouble ScalarTagDouble = new _ScalarTagDouble();
 
@@ -63,13 +73,13 @@ class _ScalarTagDouble extends ScalarTag<double> {
   double inf(/*implicit Numeric<double> ev*/) => double.INFINITY;
   double negInf(/*implicit Numeric<double> ev*/) => double.NEGATIVE_INFINITY;
 
-  show(double v) => (isMissing(v)) ? "NA" : "$v";
+  show(double v) => (isMissing(v)) ? "NA" : _fmt.format(v);
 
 //  @override
 //  get runtimeClass => classOf<double>;
 
-  Buffer<double> makeBuf([int sz = Buffer.INIT_CAPACITY]) =>
-      new BufferDouble(sz);
+//  Buffer<double> makeBuf([int sz = Buffer.INIT_CAPACITY]) =>
+//      new BufferDouble(sz);
   Locator<double> makeLoc([int sz = Buffer.INIT_CAPACITY]) =>
       new LocatorDouble(sz);
   Vec<double> makeVec(List<double> arr) => new VecDouble(arr);
@@ -81,7 +91,7 @@ class _ScalarTagDouble extends ScalarTag<double> {
       Sorter.doubleSorter;
 
   Vec<double> concat(List<Vec<double>> arrs) =>
-      new Vec(array.flatten(arrs.map(_.toArray)));
+      new Vec(array.flatten(arrs.map((a) => a.toArray())), this);
 
   @override
   toString() => "ScalarTagDouble";

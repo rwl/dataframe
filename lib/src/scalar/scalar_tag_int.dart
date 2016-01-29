@@ -24,7 +24,7 @@ library saddle.scalar_tag_int;
 //import org.saddle.locator.LocatorInt
 //import org.saddle.array.Sorter
 
-import 'scalar_tag.dart';
+import '../array/array.dart';
 import '../vec.dart';
 import '../vec/vec_int.dart';
 import '../index/index_int.dart';
@@ -33,6 +33,11 @@ import '../locator/locator.dart';
 import '../locator/locator_int.dart';
 import '../buffer.dart';
 import '../util/util.dart';
+import '../mat.dart';
+import '../mat/mat_int.dart';
+
+import 'scalar_tag.dart';
+import 'scalar_tag_double.dart';
 
 _ScalarTagInt ScalarTagInt = new _ScalarTagInt();
 
@@ -62,12 +67,12 @@ class _ScalarTagInt extends ScalarTag<int> {
     }
   }
 
-  int zero(/*implicit*/ Numeric<int> ev) => 0;
-  int one(/*implicit*/ Numeric<int> ev) => 1;
-  int inf(/*implicit*/ Numeric<int> ev) => MAX_INT;
-  int negInf(/*implicit*/ Numeric<int> ev) => MIN_INT;
+  int zero(/*implicit Numeric<int> ev*/) => 0;
+  int one(/*implicit Numeric<int> ev*/) => 1;
+  int inf(/*implicit Numeric<int> ev*/) => MAX_INT;
+  int negInf(/*implicit Numeric<int> ev*/) => MIN_INT;
 
-  show(int v) => isMissing(v) ? "%s".format("NA") : "%d".format(v);
+  show(int v) => isMissing(v) ? "NA" : "$v";
 
 //  @override
 //  def runtimeClass = classOf[Int]
@@ -78,10 +83,10 @@ class _ScalarTagInt extends ScalarTag<int> {
   Mat<int> makeMat(int r, int c, List<int> arr) => new MatInt(r, c, arr);
   Index<int> makeIndex(Vec<int> vec) /*(implicit ord: ORD[Int])*/ =>
       new IndexInt(vec);
-  Sorter<int> makeSorter(/*implicit*/ Ordering<int> ord) => Sorter.intSorter;
+  Sorter<int> makeSorter(/*implicit Ordering<int> ord*/) => Sorter.intSorter;
 
   Vec<int> concat(List<Vec<int>> arrs) =>
-      new Vec(array.flatten(arrs.map(_.toArray)));
+      new Vec(array.flatten(arrs.map((a) => a.toArray())), this);
 
   @override
   toString() => "ScalarTagInt";

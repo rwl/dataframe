@@ -190,7 +190,7 @@ abstract class Mat<
    * Maps a function over each element in the matrix
    */
   Mat map /*[@spec(Boolean, Int, Long, Double) B: ST]*/ (
-      dynamic f(arg), ScalarTag scb);
+      dynamic f(A arg), ScalarTag scb);
 
   /**
    * Changes the shape of matrix without changing the underlying data
@@ -463,7 +463,7 @@ abstract class Mat<
     createRow(int r) {
       var buf = new StringBuffer();
       strFn(int col) {
-        var l = lenMap[col];
+//        var l = lenMap[col];
 //        return "%${ l > 0 ? l : 1 }s " scalarTag.show(apply_(r, col));
         return "${scalarTag.show(apply_(r, col))} ";
       }
@@ -536,7 +536,7 @@ abstract class Mat<
   factory Mat(int rows, int cols, List<A> arr,
       ScalarTag<A> st) /*(implicit st: ST[T])*/ {
     var r = (rows == 0 || cols == 0) ? 0 : rows;
-    var c = (rows == 0 || cols == 0) ? 0 : rows;
+    var c = (rows == 0 || cols == 0) ? 0 : cols;
     var a = (rows == 0 || cols == 0) ? [] : arr;
     return st.makeMat(r, c, a);
   }

@@ -14,7 +14,7 @@
  * limitations under the License.
  **/
 
-library saddle.index;
+library saddle.index.int;
 
 //import scala.{specialized => spec}
 //import java.util.Arrays._

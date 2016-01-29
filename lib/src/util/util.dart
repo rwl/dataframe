@@ -45,7 +45,7 @@ String buildStr(int count, int total, String callback(int arg),
       i += 1;
     }
   } else {
-    while (i < count / 2) {
+    while (i < count ~/ 2) {
       buf.write(callback(i));
       i += 1;
     }
@@ -64,4 +64,7 @@ String buildStr(int count, int total, String callback(int arg),
  * @param arr Array
  * @param n Number of elements to take
  */
-Iterable grab(Iterable arr, int n) => arr.take(n)..addAll(arr.takeRight(n));
+Iterable grab(Iterable arr, int n) {
+  var arr_ = arr.toList();
+  return arr_.sublist(0, n)..addAll(arr_.sublist(arr_.length - n));
+}

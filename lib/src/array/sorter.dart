@@ -14,7 +14,7 @@
 * limitations under the License.
 **/
 
-library saddle.array;
+library saddle.array.sorter;
 
 //import org.saddle.{array, ORD}
 //import org.saddle.vec.VecBool

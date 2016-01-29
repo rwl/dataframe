@@ -34,10 +34,13 @@ import 'package:quiver/iterables.dart';
 
 final math.Random rand = new math.Random();
 
+const minl = 2;
+const maxl = 20;
+
 // Generates Mat instance up to 10x10 with entries between -1e3/+1e3 and no NAs
 Mat<double> matDouble() {
-  var r = rand.nextInt(10);
-  var c = rand.nextInt(10);
+  var r = rand.nextInt(maxl) + minl;
+  var c = rand.nextInt(maxl) + minl;
   var lst = new List<double>.generate(
       r * c, (i) => (rand.nextDouble() * 1e3) * (rand.nextBool() ? 1 : -1));
   return new Mat<double>(r, c, lst, ScalarTag.stDouble);
@@ -45,8 +48,8 @@ Mat<double> matDouble() {
 
 // Same, but with 10% NAs
 Mat<double> matDoubleWithNA() {
-  var r = rand.nextInt(10);
-  var c = rand.nextInt(10);
+  var r = rand.nextInt(maxl) + minl;
+  var c = rand.nextInt(maxl) + minl;
   var lst = new List<double>.generate(r * c, (i) {
     if (i % 10 == 0) {
       return double.NAN;
@@ -62,12 +65,13 @@ Mat<double> matDoubleWithNA() {
  */
 //class MatCheck extends Specification with ScalaCheck {
 matCheck() {
-  group("Double Mat Tests", () {
+  group("Mat double", () {
 //    /*implicit*/ val arbMat = Arbitrary(MatArbitraries.matDouble);
     ScalarTag st = ScalarTag.stDouble;
     Mat<double> m;
     setUp(() {
       m = matDouble();
+//      print(m.toString());
     });
 
     test("equality works", () {
@@ -94,20 +98,25 @@ matCheck() {
 
     test("map works", () {
       var data = m.contents;
-      expect(m.map((a) => a + 1.0, st),
-          equals(new Mat(m.numRows, m.numCols, data.map((a) => a + 1.0), st)));
+      expect(
+          m.map((a) => a + 1.0, st),
+          equals(new Mat(
+              m.numRows, m.numCols, data.map((a) => a + 1.0).toList(), st)));
       expect(
           m.map((d) => 5.0, st),
           equals(new Mat(m.numRows, m.numCols,
-              (data.map((d) => d.isNaN ? double.NAN : 5.0)), st)));
+              data.map((d) => d.isNaN ? double.NAN : 5.0).toList(), st)));
       expect(
           m.map((d) => 5, st),
-          equals(new Mat<int>(m.numRows, m.numCols,
-              data.map((d) => d.isNaN ? ScalarTag.stInt.missing() : 5), st)));
+          equals(new Mat<int>(
+              m.numRows,
+              m.numCols,
+              data.map((d) => d.isNaN ? ScalarTag.stInt.missing() : 5).toList(),
+              ScalarTag.stInt)));
     });
 
     test("transpose works", () {
-//      /*implicit*/ val arbMat = Arbitrary(MatArbitraries.matDoubleWithNA);
+//      implicit val arbMat = Arbitrary(MatArbitraries.matDoubleWithNA);
 
       m = matDoubleWithNA();
       var res = m.T;
@@ -125,7 +134,7 @@ matCheck() {
       var i = new List<int>.generate(3, (i) => rand.nextInt(m.numRows - 1));
       var res = m.takeRows(i /* : _**/);
       expect(res.numRows, equals(i.length));
-      var exp = i.map((j) => m.row(j));
+      var exp = i.map((j) => m.row(j)).toList();
       expect(res, equals(new Mat.fromVecs(exp /*: _**/, st).T));
     });
 
@@ -133,7 +142,7 @@ matCheck() {
       var i = new List<int>.generate(3, (i) => rand.nextInt(m.numCols - 1));
       var res = m.takeCols(i /* : _**/);
       expect(res.numCols, equals(i.length));
-      var exp = i.map((j) => m.col(j));
+      var exp = i.map((j) => m.col(j)).toList();
       expect(res, equals(new Mat.fromVecs(exp /*: _**/, st)));
     });
 
@@ -142,8 +151,10 @@ matCheck() {
       var loc = new Set.from(i /*: _**/);
       var res = m.withoutRows(i /*: _**/);
       expect(res.numRows, equals((m.numRows - loc.length)));
-      var exp =
-          range(m.numRows).where((j) => !loc.contains(j)).map((j) => m.row(j));
+      var exp = range(m.numRows)
+          .where((j) => !loc.contains(j))
+          .map((j) => m.row(j))
+          .toList();
       expect(res, equals(new Mat.fromVecs(exp /*: _**/, st).T));
     });
 
@@ -152,8 +163,10 @@ matCheck() {
       var loc = new Set.from(i /*: _**/);
       var res = m.withoutCols(i /*: _**/);
       expect(res.numCols, equals((m.numCols - loc.length)));
-      var exp =
-          range(m.numCols).where((j) => !loc.contains(j)).map((j) => m.col(j));
+      var exp = range(m.numCols)
+          .where((j) => !loc.contains(j))
+          .map((j) => m.col(j))
+          .toList();
       expect(res, equals(new Mat.fromVecs(exp /*: _**/, st)));
     });
 
@@ -165,23 +178,23 @@ matCheck() {
 //      /*implicit*/ val arbMat = Arbitrary(MatArbitraries.matDoubleWithNA);
 
       m = matDoubleWithNA();
-//     val exp = (m.rows() zip Range(0, m.numRows)).flatMap {
-//       case (a: Vec[_], b: Int) => if (a.hasNA) Some(b) else None
-//     }
+      var exp = enumerate(m.rows())
+          .where((iv) => iv.value.hasNA)
+          .map((iv) => iv.index);
       expect(m.rowsWithNA(), equals(exp.toSet()));
     });
 
-    test("dropRowsWithNA works", () {
-//      /*implicit*/ val arbMat = Arbitrary(MatArbitraries.matDoubleWithNA);
-      m = matDoubleWithNA();
-      expect(m.dropRowsWithNA(), equals(m.rdropNA().toMat()));
-    });
-
-    test("dropColsWithNA works", () {
-//      /*implicit*/ val arbMat = Arbitrary(MatArbitraries.matDoubleWithNA);
-      m = matDoubleWithNA();
-      expect(m.dropColsWithNA(), equals(m.dropNA().toMat()));
-    });
+//    test("dropRowsWithNA works", () {
+////      /*implicit*/ val arbMat = Arbitrary(MatArbitraries.matDoubleWithNA);
+//      m = matDoubleWithNA();
+//      expect(m.dropRowsWithNA(), equals(m.rdropNA().toMat()));
+//    });
+//
+//    test("dropColsWithNA works", () {
+////      /*implicit*/ val arbMat = Arbitrary(MatArbitraries.matDoubleWithNA);
+//      m = matDoubleWithNA();
+//      expect(m.dropColsWithNA(), equals(m.dropNA().toMat()));
+//    });
 
     test("cols works", () {
       var data = m.T.contents;
@@ -266,4 +279,10 @@ matCheck() {
 //  test("serialization works", () {
 //    expect(m, equals(serializedCopy(m)));
 //  });
+}
+
+main() {
+  range(1).forEach((_) {
+    matCheck();
+  });
 }
