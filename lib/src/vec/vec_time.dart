@@ -30,6 +30,7 @@ import '../vec.dart';
 import 'vec_impl.dart';
 import '../scalar/scalar_tag.dart';
 import '../scalar/scalar_tag_int.dart';
+import '../scalar/scalar_tag_time.dart';
 import '../array/array.dart';
 import '../stats/vec_stats.dart';
 
@@ -43,7 +44,7 @@ import '../stats/vec_stats.dart';
 class VecTime extends Vec<DateTime> {
   Vec<int> times;
   DateTimeZone tzone;
-  VecTime(this.times /*, [this.tzone = ISO_CHRONO.getZone]*/)
+  VecTime(this.times, [this.tzone] /*,  = ISO_CHRONO.getZone]*/)
       : super.internal();
 
   /*@transient lazy*/
@@ -53,14 +54,14 @@ class VecTime extends Vec<DateTime> {
   var chrono; // = ISO_CHRONO.withZone(tzone);
 
   /*@transient lazy private*/
-  var lmf = scalar.ScalarTagInt;
+  var lmf = ScalarTagInt;
 
   /*private def*/
   l2t(int l) {
     if (lmf.isMissing(l)) {
       return scalarTag.missing();
     } else {
-      return new DateTime(l, chrono);
+      return new DateTime.fromMillisecondsSinceEpoch(l); //, chrono);
     }
   }
 
@@ -143,10 +144,10 @@ class VecTime extends Vec<DateTime> {
 
   @override
   Vec<DateTime> sorted(/*implicit ev: ORD<DateTime>, st: ST<DateTime>*/) =>
-      take(array.argsort(times.toArray));
+      take(array.argsort(times.toArray()));
 
   @override
-  Vec<DateTime> pad() => vl2vt(times.pad);
+  Vec<DateTime> pad() => vl2vt(times.pad());
 
   @override
   Vec<DateTime> fillNA(DateTime f(int arg)) =>
@@ -156,10 +157,10 @@ class VecTime extends Vec<DateTime> {
   Vec<DateTime> get reversed => vl2vt(times.reversed);
 
   /*protected*/
-  Vec<DateTime> copy() => vl2vt(new Vec(times.contents));
+  Vec<DateTime> copy() => vl2vt(new Vec(times.contents, ScalarTagInt));
 
   /*private[saddle]*/
-  toArray() => times.toArray().map(l2t);
+  toArray() => times.toArray().map(l2t).toList();
 //}
 //
 //object VecTime {

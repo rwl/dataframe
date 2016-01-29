@@ -514,7 +514,7 @@ abstract class Index<
    * Convert Index elements to an IndexedSeq.
    *
    */
-//  /*IndexedSeq*/ List<T> toSeq() => toArray.toIndexedSeq;
+  /*IndexedSeq*/ List<T> toSeq() => new List.from(toArray_()); //.toIndexedSeq;
 
   /*private[saddle]*/ List<T> toArray_();
 
@@ -568,17 +568,18 @@ abstract class Index<
     if (varr.length == 0) {
       buf.write("Empty Index");
     } else {
-      var vlens = util
-          .grab(varr, half)
-          .map((a) => sm.strList(a))
-          .toList()
-          .fold(sm.strList(varr(0)).map((b) => b.length), maxf);
+//      var vlens = util
+//          .grab(varr, half)
+//          .map((a) => sm.strList(a))
+//          .toList()
+//          .fold(sm.strList(varr[0]).map((b) => b.length), maxf);
 
       buf.write("[Index $length x 1]\n");
 
       createRow(int r) {
-        var lst =
-            zip([vlens, sm.strList(raw(r))]).map((z) => "${z[1]}").toList();
+//        var lst =
+//            zip([vlens, sm.strList(raw(r))]).map((z) => "${z[1]}").toList();
+        var lst = sm.strList(raw(r));
         return lst.join(" ") + "\n";
       }
 
@@ -701,5 +702,8 @@ abstract class Index<
  * @param err Error message
  */
 class IndexException implements Exception {
-  IndexException(String err); // : super(err);
+  final String err;
+  IndexException(this.err); // : super(err);
+
+  toString() => err;
 }

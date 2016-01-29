@@ -78,6 +78,7 @@ abstract class Sorter<T> {
 //    }
 //  }
 
+  static final IntSorter intSorter = new IntSorter();
   static final DoubleSorter doubleSorter = new DoubleSorter();
 }
 
@@ -129,20 +130,6 @@ object shortSorter extends Sorter[Short] {
   }
 }
 
-object intSorter extends Sorter<int> {
-  def argSorted(arr: List<int>) = {
-    val res = range(0, arr.length)
-    IntLists.radixSortIndirect(res, arr, true)
-    res
-  }
-
-  def sorted(arr: List<int>) = {
-    val res = arr.clone()
-    IntLists.radixSort(res)
-    res
-  }
-}
-
 object floatSorter extends Sorter[Float] {
   def argSorted(arr: List[Float]) = {
     val tmp = nanToNegInf(arr)               // fastutil sorts NaN to PosInf
@@ -184,6 +171,23 @@ object timeSorter extends Sorter[DateTime] {
   }
 }
 */
+
+class IntSorter extends Sorter<int> {
+  List<int> argSorted(List<int> arr) {
+//    var res = range(0, arr.length);
+//    IntLists.radixSortIndirect(res, arr, true);
+    List<IndexedValue<double>> ivs = enumerate(arr).toList(growable: false);
+    ivs.sort((iv1, iv2) => iv1.value.compareTo(iv2.value));
+    return ivs.map((iv) => iv.index).toList();
+  }
+
+  List<int> sorted(List<int> arr) {
+    var res = new List.from(arr);
+//    IntLists.radixSort(res)
+    res.sort();
+    return res;
+  }
+}
 
 class DoubleSorter extends Sorter<double> {
   List<int> argSorted(List<double> arr) {

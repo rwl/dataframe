@@ -28,6 +28,7 @@ import '../index.dart';
 import 'join_type.dart';
 import 'reindexer.dart';
 import '../vec.dart';
+import '../scalar/scalar_tag.dart';
 
 import 'joiner.dart';
 import 'join_helper.dart';
@@ -59,7 +60,7 @@ class _JoinerImpl<
     } else if (right.isUnique && how == JoinType.LeftJoin) {
       return leftJoinUnique(left, right);
     } else if (left.isUnique && how == JoinType.RightJoin) {
-      return leftJoinUnique(right, left).swap;
+      return leftJoinUnique(right, left).swap();
     } else if (left.isMonotonic && right.isMonotonic) {
       switch (how) {
         case JoinType.InnerJoin:
@@ -192,7 +193,7 @@ class _JoinerImpl<
       }
 
       // now, fill up with values
-      var res = new List<T>(c);
+      var res = new List<T>.generate(c, (_) => scalar.zero());
       var lft = new Int32List(c);
       var rgt = new Int32List(c);
 
@@ -273,9 +274,9 @@ class _JoinerImpl<
     var nobs = passThru(TNoOp, null, null, null);
 
 //    var lIdx, rIdx, result = (array.empty<int>(nobs), array.empty<int>(nobs), array.empty<T>(nobs));
-    var lIdx = array.empty /*<int>*/ (nobs);
-    var rIdx = array.empty /*<int>*/ (nobs);
-    var result = array.empty /*<int>*/ (nobs);
+    var lIdx = array.empty /*<int>*/ (nobs, ScalarTag.stInt);
+    var rIdx = array.empty /*<int>*/ (nobs, ScalarTag.stInt);
+    var result = array.empty /*<int>*/ (nobs, scalar);
 
     // second pass populates results
     passThru(TStore, lIdx, rIdx, result);
@@ -313,7 +314,8 @@ class _JoinerImpl<
     var rres = switchLR ? lft : rgt;
 
     var st = left.scalarTag;
-    return new ReIndexer(lres, rres, new Index(new Vec(result, st), st));
+    return new ReIndexer(
+        lres, rres, new Index(new Vec(result, st).toArray(), st));
   }
 
   ReIndexer<T> outerJoinMonotonicUnique(Index<T> left, Index<T> right) {
@@ -365,7 +367,7 @@ class _JoinerImpl<
 
       // then fill
 
-      var res = new List<T>(c);
+      var res = new List<T>.generate(c, (_) => scalar.zero());
       var lft = new Int32List(c);
       var rgt = new Int32List(c);
 
@@ -517,9 +519,9 @@ class _JoinerImpl<
     // first pass counts
     var nobs = passThru(TNoOp, null, null, null);
 
-    var lIdx = array.empty /*<int>*/ (nobs);
-    var rIdx = array.empty /*<int>*/ (nobs);
-    var result = array.empty /*<T>*/ (nobs);
+    var lIdx = array.empty /*<int>*/ (nobs, ScalarTag.stInt);
+    var rIdx = array.empty /*<int>*/ (nobs, ScalarTag.stInt);
+    var result = array.empty /*<T>*/ (nobs, scalar);
 
     // second pass populates results
     passThru(TStore, lIdx, rIdx, result);
@@ -654,9 +656,9 @@ class _JoinerImpl<
     // first pass counts
     var nobs = passThru(TNoOp, null, null, null);
 
-    var lIdx = array.empty /*<int>*/ (nobs);
-    var rIdx = array.empty /*<int>*/ (nobs);
-    var result = array.empty /*<T>*/ (nobs);
+    var lIdx = array.empty /*<int>*/ (nobs, ScalarTag.stInt);
+    var rIdx = array.empty /*<int>*/ (nobs, ScalarTag.stInt);
+    var result = array.empty /*<T>*/ (nobs, scalar);
 
     // second pass populates results
     passThru(TStore, lIdx, rIdx, result);

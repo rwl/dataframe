@@ -36,8 +36,8 @@ import '../scalar/scalar_tag.dart';
     var map = new Locator /*[T]*/ (st, keys.length);
     var sc = keys.scalarTag;
     var i = 0;
-    var contiguous = true;
-    var monotonic = true;
+    bool contiguous = true;
+    bool monotonic = true;
     while (i < keys.length) {
       var k = keys.raw(i);
       if (map.inc(k) == 0) {

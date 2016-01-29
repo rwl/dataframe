@@ -77,7 +77,7 @@ import 'scalar_tag.dart';
     } else if (identical(this, NA) || identical(o, NA)) {
       return false;
     } else if (o is Scalar) {
-      return identical(this.get, o.get);
+      return this.get == o.get;
     } else {
       return false;
     }

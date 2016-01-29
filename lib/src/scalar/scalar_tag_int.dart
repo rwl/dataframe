@@ -25,6 +25,7 @@ library saddle.scalar_tag_int;
 //import org.saddle.array.Sorter
 
 import '../array/array.dart';
+import '../array/sorter.dart';
 import '../vec.dart';
 import '../vec/vec_int.dart';
 import '../index/index_int.dart';
@@ -77,7 +78,7 @@ class _ScalarTagInt extends ScalarTag<int> {
 //  @override
 //  def runtimeClass = classOf[Int]
 
-  Buffer<int> makeBuf([int sz = Buffer.INIT_CAPACITY]) => new BufferInt(sz);
+//  Buffer<int> makeBuf([int sz = Buffer.INIT_CAPACITY]) => new BufferInt(sz);
   Locator<int> makeLoc([int sz = Buffer.INIT_CAPACITY]) => new LocatorInt(sz);
   Vec<int> makeVec(List<int> arr) => new VecInt(arr);
   Mat<int> makeMat(int r, int c, List<int> arr) => new MatInt(r, c, arr);

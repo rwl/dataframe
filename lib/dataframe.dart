@@ -10,3 +10,5 @@ export 'src/vec.dart';
 export 'src/vec/vec_double.dart';
 
 export 'src/mat.dart';
+
+export 'src/series.dart';

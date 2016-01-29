@@ -120,7 +120,7 @@ class IndexInt extends Index<int> {
     if (fnd > 0) {
       return locator.get(t);
     } else {
-      return -(binarySearch(keys, t) + 1);
+      return -(binarySearch(keys.toArray(), t) + 1);
     }
   }
 
@@ -135,7 +135,7 @@ class IndexInt extends Index<int> {
     if (fnd > 0) {
       return fnd + locator.get(t);
     } else {
-      return -(binarySearch(keys, t) + 1);
+      return -(binarySearch(keys.toArray(), t) + 1);
     }
   }
 
