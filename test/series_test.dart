@@ -22,32 +22,36 @@ library saddle.test;
 import 'package:test/test.dart';
 import 'package:dataframe/dataframe.dart';
 
-//class SeriesSpec extends Specification {
 seriesTest() {
   test("reindex works on dates", () {
-    val s1 = Series(
-        Vec(_1d, 2, 3),
-        Index(
-            datetime(2005, 1, 1), datetime(2005, 1, 2), datetime(2005, 1, 3)));
-    val s2 =
-        Series(Vec(_5d, 7), Index(datetime(2005, 1, 1), datetime(2005, 1, 3)));
+    var s1 = new Series(
+        new Vec([1.0, 2.0, 3.0], ScalarTag.stDouble),
+        new Index([
+          new DateTime(2005, 1, 1),
+          new DateTime(2005, 1, 2),
+          new DateTime(2005, 1, 3)
+        ], ScalarTag.stTime));
+    var s2 = new Series(
+        new Vec([5.0, 7.0], ScalarTag.stDouble),
+        new Index([new DateTime(2005, 1, 1), new DateTime(2005, 1, 3)],
+            ScalarTag.stTime));
 
-    expect(s2.reindex(s1.index).index, equals(_ == s1.index));
+    expect(s2.reindex(s1.index).index, equals(s1.index));
   });
 
   test("non-spec primitive groupby must work", () {
-    val s = Series({'a': 1, 'b': 2, 'b': 3});
-    expect(s.groupBy.combine(_.first.getOrElse(0)),
-        equals(_ == Series({'a': 1, 'b': 2})));
+    var s = new Series({'a': 1, 'b': 2, 'b': 3});
+    expect(s.groupBy().combineIgnoreKey((Vec v) => v.first ?? 0),
+        equals(new Series({'a': 1, 'b': 2})));
   });
 
   test("map works", () {
-    val s = Series({'a': 1, 'b': 2, 'b': 3});
-//    s.map { case (k, v) => (k, v+1) } must_== s + 1
+    var s = new Series({'a': 1, 'b': 2, 'b': 3});
+    expect(s.map((k, v) => [k, v + 1]), equals(s + 1));
   });
 
   test("flatMap works", () {
-    val s = Series({'a': 1, 'b': 2, 'b': 3});
-//    s.flatMap { case (k, v) => Some((k, v+1)) } must_== s + 1
+    var s = new Series({'a': 1, 'b': 2, 'b': 3});
+    expect(s.flatMap((k, v) => /*Some(*/ [k, v + 1]), equals(s + 1));
   });
 }

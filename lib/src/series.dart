@@ -28,7 +28,7 @@ import 'array/array.dart';
 import 'index/join_type.dart';
 import 'index/index_int_range.dart';
 import 'index/slice.dart';
-//import 'groupby/groupby.dart';
+import 'groupby/series_grouper.dart';
 import 'scalar/scalar.dart';
 import 'scalar/scalar_tag.dart';
 //import java.io.OutputStream
