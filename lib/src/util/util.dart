@@ -19,6 +19,12 @@ library saddle.util;
 const int MIN_INT = -9007199254740991; //-2147483648;
 const int MAX_INT = 9007199254740991; //2147483647;
 
+class Tuple2<A, B> {
+  final A value1;
+  final B value2;
+  Tuple2(this.value1, this.value2);
+}
+
 /**
  * Additional utilities that need a home
  */

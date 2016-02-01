@@ -24,6 +24,7 @@ import '../vec.dart';
 import '../array/array.dart';
 
 import 'series_grouper.dart';
+import 'groupby.dart';
 
 /**
  * Helper class to do combine or transform after a groupBy
@@ -58,7 +59,8 @@ class FrameGrouper<Z, X, Y, T> /*[Z: ST: ORD, X: ST: ORD, Y: ST: ORD, T: ST]*/ {
 
   List<Z> get keys => uniq;
 
-//  Array/*<(Z, Array<int>)>*/ groups() => for (k <- keys) yield (k, ix.get(k))
+  List<Group<Z>> /*<(Z, Array<int>)>*/ groups() =>
+      keys.map((k) => new Group(k, ix.get(k))).toList();
 
   Frame<Z, Y, U> combine /*[U: ST]*/ (U fn(Z arg1, Vec<T> arg2)) {
     return new Frame(frame.values

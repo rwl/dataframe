@@ -110,7 +110,8 @@ seriesCheck() {
     test("take works", () {
       var i = new List<int>.generate(3, (_) => r.nextInt(s.length - 1));
       var res = s.take(i);
-      var exp = s(i[0]).concat(s(i[1])).concat(s(i[2]));
+      var exp =
+          s.extract([i[0]]).concat(s.extract([i[1]])).concat(s.extract([i[2]]));
       expect(res, equals(exp));
     });
 
@@ -294,118 +295,101 @@ seriesCheck() {
     });
 
     test("pivot/melt are opposites", () {
-      /*implicit*/ val frame = Arbitrary(FrameArbitraries.frameDoubleWithNA);
-      forAll((Frame<int, int, double> f) {
-        expect(f.melt.pivot, equals(f));
-      });
+//      /*implicit*/ val frame = Arbitrary(FrameArbitraries.frameDoubleWithNA);
+      Frame<int, int, double> f = frameDoubleWithNA();
+      expect(f.melt().pivot(), equals(f));
     });
 
     test("serialization works", () {
-      forAll((Series<int, double> s1) {
-        expect(s1, equals(serializedCopy(s1)));
-      });
+      expect(s, equals(serializedCopy(s)));
     });
   });
 
   group("Series<DateTime, double> Tests", () {
-    /*implicit*/ val ser =
-        Arbitrary(SeriesArbitraries.seriesDateTimeDoubleWithNA);
+//    /*implicit*/ val ser = Arbitrary(SeriesArbitraries.seriesDateTimeDoubleWithNA);
 
+    Series<DateTime, double> s;
+    setUp(() {
+      s = dupSeriesDateTimeDoubleWithNA();
+    });
     test("series equality", () {
-      forAll((Series<DateTime, double> s) {
-        expect(s, equals(Series(s.toVec, s.index)));
-        expect(s, equals(s));
-      });
+      expect(s, equals(new Series(s.toVec(), s.index)));
+      expect(s, equals(s));
     });
 
     test("take works", () {
-      forAll((Series<DateTime, double> s) {
-        val idx = Gen.listOfN(3, Gen.choose(0, s.length - 1));
-        forAll(idx, (i) {
-          val res = s.take(i.toArray);
-//          val exp = s.slice(i(0), i(0)+1) concat s.slice(i(1), i(1)+1) concat s.slice(i(2), i(2)+1);
-          expect(res, equals(exp));
-        });
-      });
+      var i = new List<int>.generate(3, (_) => r.nextInt(s.length - 1));
+      var res = s.take(i);
+      var exp = s
+          .slice(i[0], i[0] + 1)
+          .concat(s.slice(i[1], i[1] + 1))
+          .concat(s.slice(i[2], i[2] + 1));
+      expect(res, equals(exp));
     });
 
     test("first (key) works", () {
-      forAll((Series<DateTime, double> s) {
-        val loc = Gen.choose(0, s.length - 1);
-        forAll(loc, (i) {
-          val idx = s.index.raw(i);
-          expect(s.first(idx), equals(s.values.at(s.index.findOne(_ == idx))));
-        });
-      });
+      var i = r.nextInt(s.length - 1);
+      var idx = s.index.raw(i);
+      expect(
+          s.first(idx), equals(s.values.at(s.index.findOne((j) => j == idx))));
     });
 
     test("last (key) works", () {
-      forAll((Series<DateTime, double> s) {
-        val loc = Gen.choose(0, s.length - 1);
-        forAll(loc, (i) {
-          val idx = s.index.raw(i);
-          expect(s.last(idx), equals(s(idx).tail(1).at(0)));
-        });
-      });
+      var i = r.nextInt(s.length - 1);
+      var idx = s.index.raw(i);
+      expect(s.last(idx), equals(s(idx).tail(1).at(0)));
     });
 
     test("apply/slice (with index dups) works", () {
-      forAll((Series<DateTime, double> s) {
-        val idx = Gen.listOfN(3, Gen.choose(0, s.length - 1));
+      var i = new List<int>.generate(3, (_) => r.nextInt(s.length - 1));
 
-        forAll(idx, (i) {
-//          expect(i.length, lessThanOrEqualTo(2)) or {
-//            val locs = i.toArray;
-//            val keys = s.index.take(locs).toArray;
-//            val exp = s(keys(0)) concat s(keys(1)) concat s(keys(2));
+//      expect(i.length, lessThanOrEqualTo(2)) or {
+//        val locs = i.toArray;
+//        val keys = s.index.take(locs).toArray;
+//        val exp = s(keys(0)) concat s(keys(1)) concat s(keys(2));
 //
-//            expect(s(keys), equals(exp));
-//            expect(s(keys : _*), equals(exp));
+//        expect(s(keys), equals(exp));
+//        expect(s(keys : _*), equals(exp));
 //
-//            val srt = s.sortedIx;
+//        val srt = s.sortedIx;
 //
-//            val exp2 = srt.slice(srt.index.getFirst(keys(0)),
-//                                 srt.index.getLast(keys(1)) + 1);
-//            expect(srt(keys(0) -> keys(1)), equals(exp2));
-//            expect(srt.sliceBy(keys(0), keys(1)), equals(exp2));
+//        val exp2 = srt.slice(srt.index.getFirst(keys(0)),
+//                             srt.index.getLast(keys(1)) + 1);
+//        expect(srt(keys(0) -> keys(1)), equals(exp2));
+//        expect(srt.sliceBy(keys(0), keys(1)), equals(exp2));
 //
-//            val exp3 = srt.slice(srt.index.getFirst(keys(0)),
-//                                 srt.index.getLast(keys(1)) - srt.index.count(keys(1)) + 1);
-//            expect(srt.sliceBy(keys(0), keys(1), inclusive = false), equals(exp3));
-//          }
-        });
-      });
+//        val exp3 = srt.slice(srt.index.getFirst(keys(0)),
+//                             srt.index.getLast(keys(1)) - srt.index.count(keys(1)) + 1);
+//        expect(srt.sliceBy(keys(0), keys(1), inclusive = false), equals(exp3));
+//      }
     });
 
     test("proxyWith", () {
-      /*implicit*/ val ser =
-          Arbitrary(SeriesArbitraries.seriesDateTimeDoubleNoDup);
+//      /*implicit*/ val ser = Arbitrary(SeriesArbitraries.seriesDateTimeDoubleNoDup);
 
-      forAll((Series<DateTime, double> s1, Series<DateTime, double> s2) {
-        val proxied = s1.proxyWith(s2);
-//        val all = for (i <- 0 until proxied.length if s1.at(i).isNA && i < s2.length) yield {
-//          proxied.at(i), equals(s2.at(i)
-//        }
-        all.foldLeft(true)((acc, v) => acc && v.isSuccess);
-      });
+      var s1 = seriesDateTimeDoubleNoDup();
+      var s2 = seriesDateTimeDoubleNoDup();
+      var proxied = s1.proxyWith(s2);
+//      var all = for (i <- 0 until proxied.length if s1.at(i).isNA && i < s2.length) yield {
+//        proxied.at(i), equals(s2.at(i)
+//      }
+//      all.foldLeft(true)((acc, v) => acc && v.isSuccess);
     });
 
     test("reindex works", () {
-      /*implicit*/ val ser =
-          Arbitrary(SeriesArbitraries.seriesDateTimeDoubleNoDup);
+//      /*implicit*/ var ser = Arbitrary(SeriesArbitraries.seriesDateTimeDoubleNoDup);
 
-      forAll((Series<DateTime, double> s1, Series<DateTime, double> s2) {
-        expect(s1.reindex(s2.index).index, equals(s2.index));
-      });
+      var s1 = seriesDateTimeDoubleNoDup();
+      var s2 = seriesDateTimeDoubleNoDup();
+
+      expect(s1.reindex(s2.index).index, equals(s2.index));
     });
 
     test("serialization works", () {
-      /*implicit*/ val ser =
-          Arbitrary(SeriesArbitraries.seriesDateTimeDoubleNoDup);
+//      /*implicit*/ val ser = Arbitrary(SeriesArbitraries.seriesDateTimeDoubleNoDup);
 
-      forAll((Series<DateTime, double> s) {
-        expect(s, equals(serializedCopy(s)));
-      });
+      var s = seriesDateTimeDoubleNoDup();
+      expect(s, equals(serializedCopy(s)));
     });
   });
 }

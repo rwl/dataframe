@@ -16,6 +16,9 @@
 
 library saddle;
 
+import 'dart:math' as math;
+import 'package:quiver/iterables.dart' as iter;
+
 import 'vec.dart';
 import 'index.dart';
 import 'frame.dart';
@@ -28,12 +31,15 @@ import 'array/array.dart';
 import 'index/join_type.dart';
 import 'index/index_int_range.dart';
 import 'index/slice.dart';
+import 'index/splitter.dart';
 import 'groupby/series_grouper.dart';
+import 'groupby/index_grouper.dart';
 import 'scalar/scalar.dart';
 import 'scalar/scalar_tag.dart';
 //import java.io.OutputStream
-//import 'mat/mat_cols.dart' show MatCols;
+import 'mat/mat_cols.dart' show MatCols;
 import 'vec/vec_impl.dart';
+import 'util/util.dart' show Tuple2;
 
 /**
  * `Series` is an immutable container for 1D homogeneous data which is indexed by a
@@ -246,7 +252,7 @@ class Series<X,
    * whose key-value pairs maintain the original ordering.
    * @param keys Array of keys
    */
-  Series<X, T> apply(List<X> keys) => take(index(keys));
+  Series<X, T> extract(List<X> keys) => take(index(keys));
 
   /**
    * Extract a Series corresponding to those keys provided. Returns a new Series
@@ -325,8 +331,9 @@ class Series<X,
    * @tparam U type of other Series Values
    * @tparam V type of resulting Series values
    */
-//  def concat[U, V](other: Series[X, U])(implicit pro: Promoter[T, U, V], md: ST[V]): Series[X, V] =
-//    Series(values concat other.values, index concat other.index)
+  Series /*[X, V]*/ concat /*[U, V]*/ (Series /*[X, U]*/ other,
+          ScalarTag stv) /*(implicit pro: Promoter[T, U, V], md: ST[V])*/ =>
+      new Series(values.concat(other.values), index.concat(other.index));
 
   /**
    * Additive inverse of Series with numeric elements
@@ -580,15 +587,20 @@ class Series<X,
    * @tparam Y The type of the resulting index
    * @tparam U The type of the resulting values
    */
-  Series<Y, U> map /*[Y: ST: ORD, U: ST]*/ (/*(Y, U)*/ f(/*(X, T)*/ arg)) =>
-      new Series(toSeq().map(f)); // : _*)
+  Series /*<Y, U>*/ map /*[Y: ST: ORD, U: ST]*/ (
+          /*(Y, U)*/ f(/*(X, T)*/ arg1, arg2),
+          ScalarTag scx,
+          ScalarTag sct) =>
+      new Series.fromTuples(toSeq().map(f), scx, sct); // : _*)
 
   /**
    * Map and then flatten over the key-value pairs of the Series, resulting in a new Series.
    */
-  Series<Y, U> flatMap /*[Y: ST: ORD, U: ST]*/ (
-          Traversable /*<(Y, U)>*/ f(/*(X, T)*/ arg)) =>
-      new Series(toSeq.flatMap(f)); // : _*)
+  Series /*<Y, U>*/ flatMap /*[Y: ST: ORD, U: ST]*/ (
+          Iterable /*Traversable<(Y, U)>*/ f(/*(X, T)*/ arg),
+          ScalarTag scx,
+          ScalarTag sct) =>
+      new Series.fromTuples(toSeq().flatMap(f), scx, sct); // : _*)
 
   /**
    * Map over the values of the Series, resulting in a new Series. Applies a function
@@ -598,8 +610,8 @@ class Series<X,
    * @param f Function from T to U
    * @tparam U The type of the resulting values
    */
-  Series<X, U> mapValues /*[U: ST]*/ (U f(T arg)) =>
-      new Series(values.map(f), index);
+  Series /*<X, U>*/ mapValues /*[U: ST]*/ (/*U*/ f(/*T*/ arg), ScalarTag stu) =>
+      new Series(values.map(f, stu), index);
 
   /**
    * Left scan over the values of the Series, as in scala collections library, but
@@ -610,8 +622,9 @@ class Series<X,
    * @param f Function taking (U, T) to U
    * @tparam U Result type of function
    */
-  scanLeft /*[U: ST]*/ (U init) /*(U f((U, T) arg))*/ =>
-      new Series(values.scanLeft(init)(f), index);
+  Series scanLeft /*[U: ST]*/ (
+          init, f(arg1, T arg2), ScalarTag stu) /*(U f((U, T) arg))*/ =>
+      new Series(values.scanLeft(init, f, stu), index);
 
   // safe cast operation
 
@@ -624,10 +637,12 @@ class Series<X,
    * @tparam U Type of other series values
    * @tparam V The result type of the function
    */
-  Series<X, V> joinMap /*[U: ST, V: ST]*/ (Series<X, U> other,
+  Series /*<X, V>*/ joinMap /*[U: ST, V: ST]*/ (
+      Series /*<X, U>*/ other, f(T arg1, arg2), ScalarTag stv,
       [JoinType how = JoinType.LeftJoin]) /*(V f((T, U) arg))*/ {
-    var l, r = align(other, how);
-    return new Series(VecImpl.zipMap(l.values, r.values)(f), l.index);
+    var al = align(other, how);
+    return new Series(
+        VecImpl.zipMap(al.left.values, al.right.values, f, stv), al.left.index);
   }
 
   /**
@@ -652,7 +667,7 @@ class Series<X,
    * as combine or transform, may be performed. The groups are constructed from the keys of
    * the index, with each unique key corresponding to a group.
    */
-  SeriesGrouper<X, X, T> groupBy() => SeriesGrouper(this);
+  SeriesGrouper<X, X, T> groupBy() => new SeriesGrouper.fromSeries(this);
 
   /**
    * Construct a [[org.saddle.groupby.SeriesGrouper]] with which further computations, such
@@ -662,8 +677,10 @@ class Series<X,
    * @param fn Function from X => Y
    * @tparam Y Type of function codomain
    */
-  SeriesGrouper<Y, X, T> groupByFn /*[Y: ST: ORD]*/ (Y fn(X arg)) =>
-      SeriesGrouper(this.index.map(fn), this);
+  SeriesGrouper /*<Y, X, T>*/ groupByFn /*[Y: ST: ORD]*/ (
+          /*Y*/ fn(X arg),
+          ScalarTag sty) =>
+      new SeriesGrouper(this.index.map(fn, sty), this);
 
   /**
    * Construct a [[org.saddle.groupby.SeriesGrouper]] with which further computations, such
@@ -672,8 +689,9 @@ class Series<X,
    * @param ix Index with which to perform grouping
    * @tparam Y Type of elements of ix
    */
-  SeriesGrouper<Y, X, T> groupByIndex /*[Y: ST: ORD]*/ (Index<Y> ix) =>
-      SeriesGrouper(ix, this);
+  SeriesGrouper /*<Y, X, T>*/ groupByIndex /*[Y: ST: ORD]*/ (
+          Index /*<Y>*/ ix) =>
+      new SeriesGrouper(ix, this);
 
   /**
    * Produce a Series whose values are the result of executing a function on a sliding window of
@@ -685,7 +703,7 @@ class Series<X,
   Series /*<X, B>*/ rolling /*[B: ST]*/ (
       int winSz, /*B*/ dynamic f(Series<X, T> arg), ScalarTag scb) {
     if (winSz <= 0) {
-      return new Series<X, B>.empty();
+      return new Series /*<X, B>*/ .empty(index.scalarTag, scb);
     } else {
       var len = values.length;
       var win = (winSz > len) ? len : winSz;
@@ -703,14 +721,14 @@ class Series<X,
    * Split Series into two series at position i
    * @param i Position at which to split Series
    */
-  Splitted<X, T> /*(Series<X, T>, Series<X, T>)*/ splitAt(int i) =>
-      new Splitted._(slice(0, i), slice(i, length));
+  SplitSeries<X, T> /*(Series<X, T>, Series<X, T>)*/ splitAt(int i) =>
+      new SplitSeries._(slice(0, i), slice(i, length));
 
   /**
    * Split Series into two series at key x
    * @param k Key at which to split Series
    */
-  Splitted<X, T> /*(Series<X, T>, Series<X, T>)*/ splitBy(X k) =>
+  SplitSeries<X, T> /*(Series<X, T>, Series<X, T>)*/ splitBy(X k) =>
       splitAt(index.lsearch(k));
 
   // ----------------------------
@@ -755,38 +773,41 @@ class Series<X,
    * @tparam O1 Output row index
    * @tparam O2 Output col index
    */
-  Frame<O1, O2, T> pivot /*[O1, O2]*/ (/*implicit*/ Splitter<X, O1, O2> split,
-      ORD<O1> ord1, ORD<O2> ord2, ST<O1> m1, ST<O2> m2) {
-    var lft, rgt = split(index);
+  Frame /*<O1, O2, T>*/ pivot /*[O1, O2]*/ (
+      /*implicit*/ Splitter /*<X, O1, O2>*/ split, /*ORD<O1> ord1, ORD<O2> ord2*/
+      ScalarTag sto1,
+      ScalarTag sto2,
+      ScalarTag st) {
+    var splt = split.call(index);
+    var lft = splt.left, rgt = splt.right;
 
-    var rix = lft.uniques;
-    var cix = rgt.uniques;
+    var rix = lft.uniques();
+    var cix = rgt.uniques();
 
-    var grpr = IndexGrouper(rgt, sorted: false);
+    var grpr = new IndexGrouper(rgt, false);
     var grps =
         grpr.groups; // Group by pivot label. Each unique label will get its
     //  own column
     if (length == 0) {
-      return new Frame.empty<O1, O2, T>();
+      return new Frame /*<O1, O2, T>*/ .empty(sto1, sto2, st);
     } else {
       var loc = 0;
-      var result =
-          Array.ofDim[Vec[T]](cix.length); // accumulates result columns
+      var result = new List<Vec<T>>(cix.length); // accumulates result columns
 
-      for (var /*(k, taker)*/ arg in grps) {
+      for (var /*(k, taker)*/ grp in grps) {
         // For each pivot label grouping,
-        var gIdx = lft.take(taker); //   use group's (lft) row index labels
+        var gIdx = lft.take(grp.taker); //   use group's (lft) row index labels
         var ixer = rix.join(gIdx); //   to compute map to final (rix) locations;
-        var vals = values
-            .take(taker); // Take values corresponding to current pivot label
-        var v = ixer.rTake
-            .map(vals.take(_))
-            .getOrElse(vals); //   map values to be in correspondence to rix
+        var vals = values.take(
+            grp.taker); // Take values corresponding to current pivot label
+        var v = ixer.rTake != null
+            ? vals.take(ixer.rTake)
+            : vals; //   map values to be in correspondence to rix
         result[loc] = v; //   and save resulting col vec in array.
         loc += 1; // Increment offset into result array
       }
 
-      return new Frame(result, rix, new Index(grpr.keys));
+      return new Frame(result, rix, new Index(grpr.keys, sto2));
     }
   }
 
@@ -808,12 +829,15 @@ class Series<X,
    * @param other Series to join with
    * @param how How to perform the join
    */
-  Frame<X, Int, T> join(Series<X, T> other,
+  Frame<X, int, T> join(Series<X, T> other,
       [JoinType how = JoinType.LeftJoin]) {
     var indexer = this.index.join(other.index, how);
-//    val lseq = indexer.lTake.map(this.values.take(_)) getOrElse this.values;
-//    val rseq = indexer.rTake.map(other.values.take(_)) getOrElse other.values;
-    return new Frame(MatCols(lseq, rseq), indexer.index, Array(0, 1));
+    var lseq =
+        indexer.lTake != null ? this.values.take(indexer.lTake) : this.values;
+    var rseq =
+        indexer.rTake != null ? other.values.take(indexer.rTake) : other.values;
+    return new Frame(new MatCols([lseq, rseq], values.scalarTag), indexer.index,
+        new Index([0, 1], ScalarTag.stInt));
   }
 
   /**
@@ -825,12 +849,14 @@ class Series<X,
    * @param other Series to join with
    * @param how How to perform the join
    */
-  Frame<X, int, Any> hjoin(Series<X, _> other,
+  Frame<X, int, dynamic> hjoin(Series<X, dynamic> other,
       [JoinType how = JoinType.LeftJoin]) {
-    val indexer = this.index.join(other.index, how);
-//    val lft = indexer.lTake.map(this.values.take(_)) getOrElse this.values;
-//    val rgt = indexer.rTake.map(other.values.take(_)) getOrElse other.values;
-    return new Panel(Seq(lft, rgt), indexer.index, IndexIntRange(2));
+    var indexer = this.index.join(other.index, how);
+    var lft =
+        indexer.lTake != null ? this.values.take(indexer.lTake) : this.values;
+    var rgt =
+        indexer.rTake != null ? other.values.take(indexer.rTake) : other.values;
+    return new Panel([lft, rgt], indexer.index, new IndexIntRange(2));
   }
 
   /**
@@ -843,7 +869,7 @@ class Series<X,
    * @param other Frame[X, Any, T]
    * @param how How to perform the join
    */
-  Frame<X, int, T> joinF(Frame<X, _, T> other,
+  Frame<X, int, T> joinF(Frame<X, dynamic, T> other,
       [JoinType how = JoinType.LeftJoin]) {
     var tmpFrame = other.joinS(this, how);
 //    Frame(tmpFrame.values.last +: tmpFrame.values.slice(0, tmpFrame.values.length - 1),
@@ -860,7 +886,7 @@ class Series<X,
    * @param other Frame[X, Any, Any]
    * @param how How to perform the join
    */
-  Frame<X, Int, Any> hjoinF(Frame<X, _, _> other,
+  Frame<X, int, dynamic> hjoinF(Frame<X, dynamic, dynamic> other,
       [JoinType how = JoinType.LeftJoin]) {
     var tmpFrame = other.joinAnyS(this, how);
 //    Panel(tmpFrame.values.last +: tmpFrame.values.slice(0, tmpFrame.values.length - 1),
@@ -874,13 +900,15 @@ class Series<X,
    * @param other Other series to align with
    * @param how How to perform the join on the indexes
    */
-  Aligned /*(Series<X, T>, Series[X, U])*/ align /*[U: ST]*/ (
-      Series<X, U> other,
+  AlignedSeries /*(Series<X, T>, Series[X, U])*/ align /*[U: ST]*/ (
+      Series /*<X, U>*/ other,
       [JoinType how = JoinType.LeftJoin]) {
     var indexer = this.index.join(other.index, how);
-//    val lseq = indexer.lTake.map(this.values.take(_)) getOrElse this.values;
-//    val rseq = indexer.rTake.map(other.values.take(_)) getOrElse other.values;
-    return new Aligned._(
+    var lseq =
+        indexer.lTake != null ? this.values.take(indexer.lTake) : this.values;
+    var rseq =
+        indexer.rTake != null ? other.values.take(indexer.rTake) : other.values;
+    return new AlignedSeries._(
         new Series(lseq, indexer.index), new Series(rseq, indexer.index));
   }
 
@@ -916,7 +944,10 @@ class Series<X,
   /**
    * Convert Series to an indexed sequence of (key, value) pairs.
    */
-  IndexedSeq /*[(X, T)]*/ toSeq() => zip([index.toSeq(), values.toSeq()]);
+  List<Tuple2<X, T>> /*IndexedSeq[(X, T)]*/ toSeq() =>
+      iter.zip([index.toSeq(), values.toSeq()])
+          .map((iv) => new Tuple2(iv[0], iv[1]))
+          .toList();
 
   String stringify([int len = 10]) {
     var half = len / 2;
@@ -940,8 +971,9 @@ class Series<X,
 
       var vsca = values.scalarTag;
       var vlHf = values.head(half).concat(values.tail(half));
-      var vlen =
-          vlHf.map(vsca.show(_)).foldLeft(2)((a, b) => math.max(a, b.length));
+      var vlen = vlHf
+          .map((v) => vsca.show(v))
+          .foldLeft(2, (a, b) => math.max(a, b.length));
 
       List /*[(Int, A, B)]*/ enumZip /*[A, B]*/ (List<A> a, List<B> b) {
 //        for ( v <- (a.zipWithIndex zip b) ) yield (v._1._2, v._1._1, v._2)
@@ -1063,8 +1095,8 @@ class Series<X,
    * @tparam X Type of keys
    * @tparam T Type of values
    */
-  factory Series.empty /*[X: ST: ORD, T: ST]*/ () =>
-      new Series<X, T>(new Vec.empty<T>(), new Index.empty<X>());
+  factory Series.empty /*[X: ST: ORD, T: ST]*/ (ScalarTag scx, ScalarTag sct) =>
+      new Series<X, T>(new Vec<T>.empty(sct), new Index<X>.empty(scx));
 
   /**
    * Factory method to create a Series from a Vec and an Index
@@ -1073,25 +1105,28 @@ class Series<X,
    * @tparam X Type of keys
    * @tparam T Type of values
    */
-  factory Series.vecIndex /*[X: ST: ORD, T: ST]*/ (
-          Vec<T> values, Index<X> index) =>
-      new Series<X, T>(values, index);
+//  factory Series.vecIndex /*[X: ST: ORD, T: ST]*/ (
+//          Vec<T> values, Index<X> index) =>
+//      new Series<X, T>(values, index);
 
   /**
    * Factory method to create a Series from a Vec; keys are integer offsets
    * @param values a Vec of values
    * @tparam T Type of values
    */
-  factory Series.vec /*[T: ST]*/ (Vec<T> values) /*Series[Int, T]*/ =>
-      new Series<int, T>(values, new IndexIntRange(values.length));
+  static Series<int, dynamic> fromVec /*[T: ST]*/ (
+          Vec /*<T>*/ values) /*Series[Int, T]*/ =>
+      new Series<int, dynamic>(values, new IndexIntRange(values.length));
 
   /**
    * Factory method to create a Series from a sequence of values; keys are integer offsets
    * @param values a sequence of values
    * @tparam T Type of values
    */
-  factory Series.vals /*[T: ST]*/ (List<T> values) /*: Series[Int, T]*/ =>
-      new Series<int, T>(Vec(values), new IndexIntRange(values.length));
+  static Series<int, dynamic> fromList /*[T: ST]*/ (
+          List /*<T>*/ values, ScalarTag st) /*: Series[Int, T]*/ =>
+      new Series<int, dynamic>(
+          new Vec(values, st), new IndexIntRange(values.length));
 
   /**
    * Factory method to create a Series from a sequence of key/value pairs
@@ -1099,17 +1134,19 @@ class Series<X,
    * @tparam T Type of value
    * @tparam X Type of key
    */
-//  def apply[X: ST: ORD, T: ST](values: (X, T)*): Series<X, T> =
-//    new Series<X, T>(Vec(values.map(_._2).toArray), Index(values.map(_._1).toArray))
+  factory Series.fromTuples /*[X: ST: ORD, T: ST]*/ (
+          List<Tuple2> values /*(X, T)**/, ScalarTag scx, ScalarTag sct) =>
+      new Series /*<X, T>*/ (new Vec(values.map((v) => v.value2).toList(), sct),
+          new Index(values.map((v) => v.value1).toList(), scx));
 }
 
-class Splitted<X, T> {
+class SplitSeries<X, T> {
   final Series<X, T> left, right;
-  Splitted._(this.left, this.right);
+  SplitSeries._(this.left, this.right);
 }
 
-class Aligned<X, T, U> {
+class AlignedSeries<X, T, U> {
   final Series<X, T> left;
   final Series<X, U> right;
-  Aligned._(this.left, this.right);
+  AlignedSeries._(this.left, this.right);
 }

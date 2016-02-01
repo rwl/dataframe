@@ -20,6 +20,7 @@ library saddle.groupby.index_grouper;
 
 import '../index.dart';
 import '../array/array.dart';
+import 'groupby.dart';
 
 /**
  * Creates groups for each unique key in an index
@@ -46,7 +47,8 @@ class IndexGrouper<Y> /*[Y: ST: ORD]*/ {
 
   List<Y> get keys => uniq;
 
-  List /*[(Y, Array[Int])]*/ get groups => keys.map((k) => [k, ix.get(k)]);
+  List<Group<Y>> /*[(Y, Array[Int])]*/ get groups =>
+      keys.map((k) => new Group<Y>(k, ix.get(k))).toList();
 //}
 
 //object IndexGrouper {

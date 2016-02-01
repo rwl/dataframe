@@ -1263,7 +1263,7 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    * @param rhow How to perform the join on the row indexes
    * @param chow How to perform the join on the col indexes
    */
-  Aligned /*(Frame<RX, CX, T>, Frame<RX, CX, U>)*/ align /*[U: ST]*/ (
+  AlignedFrame /*(Frame<RX, CX, T>, Frame<RX, CX, U>)*/ align /*[U: ST]*/ (
       Frame /*<RX, CX, U>*/ other,
       [JoinType rhow = JoinType.OuterJoin,
       JoinType chow = JoinType.OuterJoin]) {
@@ -1282,7 +1282,7 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
       return rJoin.rTake != null ? rvals[i].take(rJoin.rTake) : rvals[i];
     });
 
-    return new Aligned._(new Frame(lvecs, rJoin.index, cJoin.index),
+    return new AlignedFrame._(new Frame(lvecs, rJoin.index, cJoin.index),
         new Frame(rvecs, rJoin.index, cJoin.index));
   }
 
@@ -2155,7 +2155,9 @@ class Panel {
             asIdxSeq.map((i) => i.values), asIdxSeq(0).index, colIx);
       default:
         var init = new Frame(
-            /*Seq(*/ asIdxSeq(0).values, asIdxSeq(0).index, new Index(0));
+            /*Seq(*/ asIdxSeq(0).values,
+            asIdxSeq(0).index,
+            new Index(0));
         var temp = asIdxSeq.tail
             .foldLeft(init, (a, b) => a.joinS(b, JoinType.OuterJoin));
         return new Frame(temp.values, temp.rowIx, colIx);
@@ -2189,10 +2191,10 @@ class SplitFrame<RX, CX, T> {
   SplitFrame._(this.left, this.right);
 }
 
-class Aligned<RX, CX, T, U> {
+class AlignedFrame<RX, CX, T, U> {
   final Frame<RX, CX, T> left;
   final Frame<RX, CX, U> right;
-  Aligned._(this.left, this.right);
+  AlignedFrame._(this.left, this.right);
 }
 
 class FramePair<A, B, T> {

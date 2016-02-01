@@ -27,43 +27,51 @@ import 'package:dataframe/dataframe.dart';
 //class FrameSpec extends Specification {
 frameTest() {
   test("Frame.empty behaves as expected", () {
-    expect(Frame({"a": Vec.empty[Int], "b": Vec.empty[Int]}).isEmpty, isTrue);
+    expect(
+        new Frame({
+          "a": new Vec<int>.empty(ScalarTag.stInt),
+          "b": new Vec<int>.empty(ScalarTag.stInt)
+        }).isEmpty,
+        isTrue);
   });
 
   test("shift-merge must work", () {
-    var s1 = org.saddle.Series(Vec(1, 2, 3), Index("a", "b", "c"));
+    var s1 = new Series(
+        new Vec([1, 2, 3], ScalarTag.stInt), new Index(["a", "b", "c"]));
     var mergeShift = s1.join(s1.shift(1));
     expect(
         mergeShift.row("b"),
-        equals(Frame({
-          0: Series({"b": 2}),
-          1: Series({"b": 1})
+        equals(new Frame({
+          0: new Series({"b": 2}),
+          1: new Series({"b": 1})
         })));
   });
 
   test("map works", () {
-    var f = Frame({
-      "a": Series({"x": 1, "y": 2, "z": 3}),
-      "b": Series({"x": 4, "y": 5, "z": 6})
+    var f = new Frame({
+      "a": new Series({"x": 1, "y": 2, "z": 3}),
+      "b": new Series({"x": 4, "y": 5, "z": 6})
     });
 //    f.map { case (r, c, v) => (r, c, v + 1) } must_== f + 1
   });
 
   test("flatMap works", () {
-    var f = Frame({
-      "a": Series({"x": 1, "y": 2, "z": 3}),
-      "b": Series({"x": 4, "y": 5, "z": 6})
+    var f = new Frame({
+      "a": new Series({"x": 1, "y": 2, "z": 3}),
+      "b": new Series({"x": 4, "y": 5, "z": 6})
     });
 //    f.flatMap { case (r, c, v) => Some((r, c, v + 1)) } must_== f + 1
   });
 
   test("colType works within rfilter", () {
-    val strVec = Vec("string", "another string", "unrelated");
-    val intVec = vec.randi(3);
-    val df = Panel(strVec, intVec);
-//    val df2 = df.rfilter((x) => x.get(0).map(_.toString).getOrElse("").contains("string"));
-    expect(df2.colType[Int], isNot(equals(new Frame.empty<Int, Int, Int>())));
+    var strVec = new Vec(["string", "another string", "unrelated"]);
+    var intVec = vec.randi(3);
+    var df = new Panel(strVec, intVec);
+    var df2 = df.rfilter((x) =>
+        x.get(0).map((y) => y.toString()).getOrElse("").contains("string"));
+    expect(df2.colType(ScalarTag.stInt),
+        isNot(equals(new Frame<int, int, int>.empty())));
     expect(df2.colType[String],
-        isNot(equals(new Frame.empty<Int, Int, String>())));
+        isNot(equals(new Frame<int, int, String>.empty())));
   });
 }

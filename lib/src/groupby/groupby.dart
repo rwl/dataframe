@@ -14,19 +14,10 @@
  * limitations under the License.
  **/
 
-library saddle;
+library saddle.groupby;
 
-//import org.scalacheck.Gen
-
-class FrameArbitraries {
-  // Generates frame of size of up to 20x10
-  //  with 90% of entries between -1e3/+1e3 and 10% NA
-
-//  Gen<Frame<int, int, double>> frameDoubleWithNA() {
-//    for {
-//      n <- Gen.choose(0, 20)
-//      m <- Gen.choose(0, 10)
-//      lst <- Gen.listOfN(n * m, Gen.frequency((9, Gen.chooseNum(-1e3, 1e3)), (1, na.to[Double])))
-//    } yield Frame(Mat(n, m, lst.toArray))
-//  }
+class Group<Z> {
+  final Z key;
+  final List<int> taker;
+  Group(this.key, this.taker);
 }
