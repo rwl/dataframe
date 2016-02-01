@@ -75,6 +75,22 @@ class _ScalarTagDouble extends ScalarTag<double> {
 
   show(double v) => (isMissing(v)) ? "NA" : _fmt.format(v);
 
+  double promote(val, ScalarTag st) {
+    if (st.isMissing(val)) {
+      return missing();
+    } else if (st == ScalarTag.stBool) {
+      return val ? 1.0 : 0.0;
+    } else if (st == ScalarTag.stInt) {
+      return val.toDouble();
+    } else if (st == ScalarTag.stDouble) {
+      return val;
+    } else if (st == ScalarTag.stTime) {
+      return val.millisecondsSinceEpoch.toDouble();
+    } else {
+      return zero();
+    }
+  }
+
 //  @override
 //  get runtimeClass => classOf<double>;
 

@@ -33,8 +33,10 @@ import '../locator/locator.dart';
 //import '../locator/locator_bool.dart';
 import '../buffer.dart';
 import '../util/util.dart';
+import '../mat.dart';
+import '../mat/mat_bool.dart';
 
-final _ScalarTagBool ScalarTagBool = new ScalarTagBool();
+final _ScalarTagBool ScalarTagBool = new _ScalarTagBool();
 
 /**
  * bool ScalarTag
@@ -53,13 +55,30 @@ class _ScalarTagBool extends ScalarTag<bool> {
   bool inf(/*implicit ev: NUM<bool>*/) => true;
   bool negInf(/*implicit ev: NUM<bool>*/) => false;
 
-  String show(bool v) => "$v";
+//  String show(bool v) => "$v";
+
+  bool promote(val, ScalarTag st) {
+    if (st.isMissing(val)) {
+      return missing();
+    } else if (st == ScalarTag.stBool) {
+      return val;
+    } else if (st == ScalarTag.stInt) {
+      return val != 0;
+    } else if (st == ScalarTag.stDouble) {
+      return val != 0.0;
+    } else if (st.runtimeClass == String) {
+      const t = const ["true", "t", "yes", "y"];
+      return t.contains(val);
+    } else {
+      return zero();
+    }
+  }
 
 //  override def runtimeClass = classOf<bool>
 
 //  def makeBuf(sz: Int = Buffer.INIT_CAPACITY) = new BufferAny<bool>(sz)
   Locator makeLoc([int sz = Buffer.INIT_CAPACITY]) => new LocatorBool();
-  Vec<bool> makeVec(List<bool> arr) => new VecBool(arr, this);
+  Vec<bool> makeVec(List<bool> arr) => new VecBool(arr);
   Mat<bool> makeMat(int r, int c, List<bool> arr) => new MatBool(r, c, arr);
   Index<bool> makeIndex(Vec<bool> vec) /*(implicit ord: ORD<bool>)*/ =>
       new IndexAny<bool>(vec);

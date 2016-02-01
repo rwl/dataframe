@@ -66,6 +66,22 @@ class _ScalarTagTime extends ScalarTagAny<DateTime> {
   DateTime zero(/*implicit Numeric<T> ev*/) =>
       new DateTime.fromMillisecondsSinceEpoch(0);
 
+  DateTime promote(val, ScalarTag st) {
+    if (st.isMissing(val)) {
+      return missing();
+    } else if (st == ScalarTag.stInt) {
+      return new DateTime.fromMillisecondsSinceEpoch(val);
+    } else if (st == ScalarTag.stDouble) {
+      return new DateTime.fromMillisecondsSinceEpoch(val.toInt());
+    } else if (st == ScalarTag.stTime) {
+      return val;
+    } else if (st.runtimeClass == String) {
+      return DateTime.parse(val);
+    } else {
+      return zero();
+    }
+  }
+
   @override
   Vec<DateTime> makeVec(List<DateTime> arr) =>
       new VecTime(new Vec(time2LongArray(arr), ScalarTag.stInt));

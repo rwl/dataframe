@@ -61,6 +61,8 @@ class ScalarTagAny<T> /*[T: CLM]*/ extends ScalarTag<T> {
 
   show(T v) => "%s".format(v == null ? "NA" : v.toString());
 
+  T promote(val, ScalarTag st) => isMissing(val) ? missing() : zero();
+
 //  @override def runtimeClass = implicitly[CLM<T>].erasure
 
   Buffer<T> makeBuf([int sz = Buffer.INIT_CAPACITY]) =>

@@ -25,11 +25,17 @@ import 'dart:math';
 
 import 'package:test/test.dart';
 import 'package:dataframe/dataframe.dart';
+import 'package:dataframe/src/util/concat.dart';
 
 final Random r = new Random();
 
 const int minl = 2;
-const int maxl = 18;
+const int maxl = 48;
+
+final ScalarTag si = ScalarTag.stInt;
+final ScalarTag sb = ScalarTag.stBool;
+final ScalarTag sd = ScalarTag.stDouble;
+//final ScalarTag st = ScalarTag.stTime;
 
 List<bool> boolList() {
   var l = r.nextInt(maxl) + minl;
@@ -60,11 +66,11 @@ List<double> doubleList() {
 }
 
 concatTest() {
-  test("concat Boolean, Boolean", () {
+  test("concat bool, bool", () {
     var a1 = boolList();
     var a2 = boolList();
 
-    var res = Concat.append(a1, a2);
+    var res = Concat.append(a1, a2, sb, sb);
     var exp = a1..addAll(a2);
     expect(res, equals(exp));
   });
@@ -93,11 +99,12 @@ concatTest() {
 //    }
 //  });
 
-  test("concat Int, Boolean", () {
+  test("concat int, bool", () {
     var a1 = intList();
     var a2 = boolList();
-    var res = Concat.append(a1, a2);
-    var exp = a1..addAll(a2.map((a) => a ? 1 : 0));
+    var res = Concat.append(a1, a2, si, sb);
+    var v2 = new Vec<bool>(a2, sb).map((b) => b ? 1 : 0, si);
+    var exp = a1..addAll(v2.toArray());
     expect(res, equals(exp));
   });
 
@@ -117,12 +124,12 @@ concatTest() {
 //    }
 //  });
 
-  test("concat Double, Boolean", () {
+  test("concat double, bool", () {
     var a1 = doubleList();
     var a2 = boolList();
-    var res = Concat.append(a1, a2);
-    var exp = a1..addAll(a2.map((a) => a ? 1.0 : 0.0));
-    expect(res, equals(exp));
+    var res = Concat.append(a1, a2, sd, sb);
+    var exp = a1..addAll(a2.map((b) => b ? 1.0 : 0.0));
+    expect(new Vec(res, sd), equals(new Vec(exp, sd)));
   });
 
   // -----
@@ -281,11 +288,11 @@ concatTest() {
   // ------
   // Int
 
-  test("concat Int, Int", () {
+  test("concat int, int", () {
     var a1 = intList();
     var a2 = intList();
-    var res = Concat.append(a1, a2);
-    var exp = a1..addAll(a2);
+    var res = Concat.append(a1, a2, si, si);
+    var exp = new Vec(a1, si).map((i) => i.toInt(), si).contents..addAll(a2);
     expect(res, equals(exp));
   });
 
@@ -305,14 +312,14 @@ concatTest() {
 //    }
 //  });
 
-  test("concat Double, Int", () {
+  test("concat double, int", () {
     var a1 = doubleList();
     var a2 = intList();
-    var res = Concat.append(a1, a2);
-    var exp = a1..addAll(a2.map((a) => a.toDouble()));
-    var st = ScalarTag.stDouble;
-    expect(new Vec(res, st),
-        new Vec(exp, st)); // must handle equality on NaN's properly
+    var res = Concat.append(a1, a2, sd, si);
+    var v2 = new Vec(a2, si).map((i) => i.toDouble(), sd);
+    var exp = a1..addAll(v2.contents);
+    expect(new Vec(res, sd),
+        new Vec(exp, sd)); // must handle equality on NaN's properly
   });
 
   // ------
@@ -356,13 +363,18 @@ concatTest() {
   // -----
   // Double
 
-  test("concat Double, Double", () {
+  test("concat double, double", () {
     var a1 = doubleList();
     var a2 = doubleList();
-    var res = Concat.append(a1, a2);
+    var res = Concat.append(a1, a2, sd, sd);
     var exp = a1..addAll(a2);
-    var st = ScalarTag.stDouble;
-    expect(new Vec(res, st),
-        equals(new Vec(exp, st))); // must handle equality on NaN's properly
+    // must handle equality on NaN's properly
+    expect(new Vec(res, sd), equals(new Vec(exp, sd)));
   });
+}
+
+main() {
+  for (var i = 0; i < 1; i++) {
+    concatTest();
+  }
 }

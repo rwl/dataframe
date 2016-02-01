@@ -32,6 +32,9 @@ class Tuple3<A, B, C> {
   Tuple3(this.value1, this.value2, this.value3);
 }
 
+Iterable<dynamic> flatten(Iterable<dynamic> input) =>
+    input.expand((x) => x is Iterable ? flatten(x) : [x]);
+
 /**
  * Additional utilities that need a home
  */

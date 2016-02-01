@@ -40,7 +40,7 @@ import '../mat/mat_int.dart';
 import 'scalar_tag.dart';
 import 'scalar_tag_double.dart';
 
-_ScalarTagInt ScalarTagInt = new _ScalarTagInt();
+final _ScalarTagInt ScalarTagInt = new _ScalarTagInt();
 
 /**
  * Int ScalarTag
@@ -74,6 +74,22 @@ class _ScalarTagInt extends ScalarTag<int> {
   int negInf(/*implicit Numeric<int> ev*/) => MIN_INT;
 
   show(int v) => isMissing(v) ? "NA" : "$v";
+
+  int promote(val, ScalarTag st) {
+    if (st.isMissing(val)) {
+      return missing();
+    } else if (st == ScalarTag.stBool) {
+      return val ? 1 : 0;
+    } else if (st == ScalarTag.stInt) {
+      return val;
+    } else if (st == ScalarTag.stDouble) {
+      return val.toInt();
+    } else if (st == ScalarTag.stTime) {
+      return val.millisecondsSinceEpoch;
+    } else {
+      return zero();
+    }
+  }
 
 //  @override
 //  def runtimeClass = classOf[Int]

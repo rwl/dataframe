@@ -103,7 +103,7 @@ seriesCheck() {
     });
 
     test("series equality", () {
-      expect(s, equals(new Series.vec(s.toVec())));
+      expect(s, equals(Series.fromVec(s.toVec())));
       expect(s, equals(s));
     });
 
@@ -118,9 +118,9 @@ seriesCheck() {
     test("head works", () {
       expect(s.head(0), equals(new Series<int, double>.empty()));
       if (s.length == 1) {
-        expect(s.head(1), equals(s(0)));
+        expect(s.head(1), equals(s.extract([0])));
       } else {
-        var exp = s(0).concat(s(1));
+        var exp = s.extract([0]).concat(s.extract([1]));
         expect(s.head(2), equals(exp));
       }
     });
@@ -128,9 +128,9 @@ seriesCheck() {
     test("tail works", () {
       expect(s.tail(0), equals(new Series<int, double>.empty()));
       if (s.length == 1) {
-        expect(s.tail(1), equals(s(0)));
+        expect(s.tail(1), equals(s.extract([0])));
       } else {
-        var exp = s(s.length - 2).concat(s(s.length - 1));
+        var exp = s.extract([s.length - 2]).concat(s.extract([s.length - 1]));
         expect(s.tail(2), equals(exp));
       }
     });

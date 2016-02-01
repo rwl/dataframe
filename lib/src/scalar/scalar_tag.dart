@@ -55,7 +55,7 @@ abstract class ScalarTag<T> /*[@spec(Boolean, Int, Long, Float, Double) T]*/
 
   List<String> strList(T v) => [show(v)];
 
-  String show(T v);
+  String show(T v) => "$v";
 
   // Workaround: Scala types Any, AnyRef, AnyVal all have runtimeClass java.lang.Object; workaround continues
   // via ScalarTag implicit resolution hierarchy below.
@@ -80,11 +80,14 @@ abstract class ScalarTag<T> /*[@spec(Boolean, Int, Long, Float, Double) T]*/
   @override
   toString() => "ScalarTag[%s]".format(runtimeClass);
 
-  @override
-  erasure() => runtimeClass;
+//  @override
+//  erasure() => runtimeClass;
+
+  T promote(dynamic arg, ScalarTag st);
 
   // forward 2.10 compatibility
 //  def runtimeClass: Class[_]
+  Type get runtimeClass => Object;
 //}
 
 //object ScalarTag extends ScalarTagImplicits {

@@ -500,7 +500,7 @@ abstract class Vec<
    * Converts Vec to an indexed sequence (default implementation is immutable.Vector)
    *
    */
-//  IndexedSeq<T> toSeq() => toArray.toIndexedSeq;
+  List<T> toSeq() => new List<T>.from(toArray());
 
   /**
    * Returns a Vec whose backing array has been copied

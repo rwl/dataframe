@@ -589,7 +589,7 @@ class Series<X,
    * @tparam U The type of the resulting values
    */
   Series /*<Y, U>*/ map /*[Y: ST: ORD, U: ST]*/ (
-          /*(Y, U)*/ f(/*(X, T)*/ arg1, arg2),
+          /*(Y, U)*/ f(/*(X, T)*/ Tuple2<X, T> arg1),
           ScalarTag scx,
           ScalarTag sct) =>
       new Series.fromTuples(toSeq().map(f), scx, sct); // : _*)
@@ -601,7 +601,7 @@ class Series<X,
           Iterable /*Traversable<(Y, U)>*/ f(/*(X, T)*/ arg),
           ScalarTag scx,
           ScalarTag sct) =>
-      new Series.fromTuples(toSeq().flatMap(f), scx, sct); // : _*)
+      new Series.fromTuples(util.flatten(toSeq().map(f)), scx, sct); // : _*)
 
   /**
    * Map over the values of the Series, resulting in a new Series. Applies a function
@@ -857,7 +857,7 @@ class Series<X,
         indexer.lTake != null ? this.values.take(indexer.lTake) : this.values;
     var rgt =
         indexer.rTake != null ? other.values.take(indexer.rTake) : other.values;
-    return new Panel([lft, rgt], indexer.index, new IndexIntRange(2));
+    return Panel.vecsIndex([lft, rgt], indexer.index, new IndexIntRange(2));
   }
 
   /**
@@ -873,8 +873,11 @@ class Series<X,
   Frame<X, int, T> joinF(Frame<X, dynamic, T> other,
       [JoinType how = JoinType.LeftJoin]) {
     var tmpFrame = other.joinS(this, how);
-//    Frame(tmpFrame.values.last +: tmpFrame.values.slice(0, tmpFrame.values.length - 1),
-//          tmpFrame.rowIx, IndexIntRange(other.colIx.length + 1));
+    return new Frame(
+        tmpFrame.values.sublist(0, tmpFrame.values.length - 1)
+          ..insert(0, tmpFrame.values.last),
+        tmpFrame.rowIx,
+        new IndexIntRange(other.colIx.length + 1));
   }
 
   /**
@@ -890,8 +893,11 @@ class Series<X,
   Frame<X, int, dynamic> hjoinF(Frame<X, dynamic, dynamic> other,
       [JoinType how = JoinType.LeftJoin]) {
     var tmpFrame = other.joinAnyS(this, how);
-//    Panel(tmpFrame.values.last +: tmpFrame.values.slice(0, tmpFrame.values.length - 1),
-//          tmpFrame.rowIx, IndexIntRange(other.colIx.length + 1))
+    return Panel.vecsIndex(
+        tmpFrame.values.sublist(0, tmpFrame.values.length - 1)
+          ..insert(0, tmpFrame.values.last),
+        tmpFrame.rowIx,
+        new IndexIntRange(other.colIx.length + 1));
   }
 
   /**
@@ -1046,6 +1052,8 @@ class Series<X,
         return false;
       } else if (index == s.index && values == s.values) {
         return true;
+      } else {
+        return false;
       }
     } else {
       return false;
@@ -1100,8 +1108,7 @@ class Series<X,
    * object of [[org.saddle.Vec]].
    * @param v Series[_, Boolean]
    */
-  static /*implicit*/ serToBoolLogic(Series /*[_, Boolean]*/ v) =>
-      Vec.vecToBoolLogic(v.toVec);
+//  static /*implicit*/ serToBoolLogic(Series /*[_, Boolean]*/ v) => Vec.vecToBoolLogic(v.toVec);
 
   // factory methods
 
