@@ -18,7 +18,7 @@ library saddle.frame;
 
 import 'dart:math' as math;
 
-import 'package:quiver/iterables.dart' show zip, range;
+import 'package:quiver/iterables.dart' show zip, range, IndexedValue, enumerate;
 
 import 'index.dart';
 import 'mat.dart';
@@ -1700,34 +1700,29 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
       var clens = MatCols.colLens(values, numCols, ncols);
 
       var csca = colIx.scalarTag;
-      clen(int c) => math.max(
-          clens[c],
-          () {
-            var lst = csca.strList(colIx.raw(c)).map((x) => x.length);
-            return lst.length > 0 ? lst.max() : 0;
-          }());
+      clen(int c) {
+        var lst = csca.strList(colIx.raw(c)).map((x) => x.length);
+        return math.max(clens[c], lst.length > 0 ? lst.reduce(math.max) : 0);
+      }
 
-      var prevColMask = clens.keys.map((x) => [
-            x /*._1*/,
-            false
-          ]); // recalls whether we printed a column's label at level L-1
+      // recalls whether we printed a column's label at level L-1
+      var prevColMask = new Map.fromIterable(clens, value: (_) => false);
       String prevColLabel = ""; // recalls previous column's label at level L
 
       // build columns header
       createColHeader(int l) => (int c) {
             var labs = csca.strList(colIx.raw(c));
-            var currLab = labs(l);
+            String currLab = labs(l);
 
-            var fmt = "%" + clen(c) + "s ";
             var res;
             if (l == labs.length - 1 ||
                 currLab != prevColLabel ||
-                prevColMask.get(c).getOrElse(false)) {
-              prevColMask = prevColMask.updated(c, true);
-              res = currLab.formatted(fmt);
+                (prevColMask[c] ?? false)) {
+              prevColMask[c] = true;
+              res = "$currLab ".padLeft(clen(c));
             } else {
-              prevColMask = prevColMask.updated(c, false);
-              res = "".formatted(fmt);
+              prevColMask[c] = false;
+              res = " ".padLeft(clen(c));
             }
             prevColLabel = currLab;
             return res;
@@ -1755,8 +1750,12 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
       buf.write("\n");
 
       // for building row labels
-//      def enumZip[A, B](a: List[A], b: List[B]): List[(Int, A, B)] =
-//        for ( v <- (a.zipWithIndex zip b) ) yield (v._1._2, v._1._1, v._2)
+      List<util.Tuple3> /*[(Int, A, B)]*/ enumZip /*[A, B]*/ (List a, List b) {
+        return zip([enumerate(a), b]).map((l) {
+          IndexedValue iv = l[0];
+          return new util.Tuple3(iv.index, iv.value, l[1]);
+        }).toList();
+      }
 
       var prevRowLabels = new List.generate(
           rowIx.scalarTag.strList(rowIx.raw(0)).length, (_) => "");
@@ -1768,15 +1767,19 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
 
       createIx(int r) {
         var vls = rsca.strList(rowIx.raw(r));
-//        val lst = for ( (i, l, v) <- enumZip(rlens, vls)) yield {
-//          val fmt = "%" + l + "s"
-//          val res = if (i == vls.length - 1 || prevRowLabels(i) != v) {
-//            resetRowLabels(i+1)
-//            v.formatted(fmt)
-//          } else "".formatted(fmt)
-//          prevRowLabels(i) = v
-//          res
-//        }
+        var lst = enumZip(rlens, vls).map((tup) {
+          int i = tup.value1, l = tup.value2;
+          String v = tup.value3;
+          String res;
+          if (i == vls.length - 1 || prevRowLabels(i) != v) {
+            resetRowLabels(i + 1);
+            res = v.padLeft(l);
+          } else {
+            res = "".padLeft(l);
+          }
+          prevRowLabels[i] = v;
+          return res;
+        }).toList();
         return lst.join(" ");
       }
 

@@ -456,16 +456,17 @@ abstract class Mat<
         .map(scalarTag.show, st)
         .foldLeft(0, maxStrLen);
     var colIdx = util.grab(range(0, numCols), halfc);
-    var lenSeq = colIdx.map((c) => range(c, maxColLen(col(c))));
-    Map lenMap; // = lenSeq.toMap.withDefault(_ => 1);
+//    var lenSeq = colIdx.map((c) => range(c, maxColLen(col(c))));
+//    var lenMap = lenSeq.toMap.withDefault(_ => 1)
+    Map<int, int> lenMap =
+        new Map.fromIterable(colIdx, value: (c) => maxColLen(col(c)));
 
     // function to build a row
     createRow(int r) {
       var buf = new StringBuffer();
       strFn(int col) {
-//        var l = lenMap[col];
-//        return "%${ l > 0 ? l : 1 }s " scalarTag.show(apply_(r, col));
-        return "${scalarTag.show(apply_(r, col))} ";
+        var l = lenMap[col] ?? 1;
+        return "${scalarTag.show(apply_(r, col)).padLeft(l > 0 ? l : 1)} ";
       }
       buf.write(util.buildStr(ncols, numCols, strFn));
       buf.write("\n");

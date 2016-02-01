@@ -25,6 +25,13 @@ class Tuple2<A, B> {
   Tuple2(this.value1, this.value2);
 }
 
+class Tuple3<A, B, C> {
+  final A value1;
+  final B value2;
+  final C value3;
+  Tuple3(this.value1, this.value2, this.value3);
+}
+
 /**
  * Additional utilities that need a home
  */

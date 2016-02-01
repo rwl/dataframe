@@ -39,7 +39,8 @@ import 'scalar/scalar_tag.dart';
 //import java.io.OutputStream
 import 'mat/mat_cols.dart' show MatCols;
 import 'vec/vec_impl.dart';
-import 'util/util.dart' show Tuple2;
+import 'util/util.dart' show Tuple2, Tuple3;
+import 'util/util.dart' as util;
 
 /**
  * `Series` is an immutable container for 1D homogeneous data which is indexed by a
@@ -950,7 +951,7 @@ class Series<X,
           .toList();
 
   String stringify([int len = 10]) {
-    var half = len / 2;
+    var half = len ~/ 2;
 
     var buf = new StringBuffer();
 
@@ -959,52 +960,66 @@ class Series<X,
     } else {
       buf.write("[$length x 1]\n");
 
-      var maxf = (List<int> a, List<String> b) =>
-          null; //(a zip b).map(v => v._1.max(v._2.length))
+      maxf(List<int> a, List<String> b) =>
+          iter.zip([a, b]).map((v) => math.max(v[0], v[1].length));
 
       var isca = index.scalarTag;
-      var vidx = index.toVec;
+      var vidx = index.toVec();
       var idxHf = vidx.head(half).concat(vidx.tail(half));
       var ilens = idxHf
-          .map(isca.strList(_))
-          .foldLeft(isca.strList(vidx(0)).map(_.length))(maxf);
+          .toArray()
+          .map((i) => isca.strList(i))
+          .fold(isca.strList(vidx(0)).map((s) => s.length), maxf);
 
       var vsca = values.scalarTag;
       var vlHf = values.head(half).concat(values.tail(half));
-      var vlen = vlHf
+      int vlen = vlHf
+          .toArray()
           .map((v) => vsca.show(v))
-          .foldLeft(2, (a, b) => math.max(a, b.length));
+          .fold(2, (a, b) => math.max(a, b.length));
 
-      List /*[(Int, A, B)]*/ enumZip /*[A, B]*/ (List<A> a, List<B> b) {
-//        for ( v <- (a.zipWithIndex zip b) ) yield (v._1._2, v._1._1, v._2)
+      List<Tuple3<int, dynamic, dynamic>> /*[(Int, A, B)]*/ enumZip /*[A, B]*/ (
+          List a, List b) {
+        return iter.zip([iter.enumerate(a), b]).map((l) {
+          iter.IndexedValue iv = l[0];
+          return new Tuple3(iv.index, iv.value, l[1]);
+        }).toList();
       }
 
-      var sz = isca.strList(index.raw(0)).size;
+      var sz = isca.strList(index.raw(0)).length;
 
-      var prevRowLabels = Array.fill(sz)("");
+      var prevRowLabels = new List<String>.generate(sz, (_) => "");
       resetRowLabels(int k) {
-//        for (i <- k until prevRowLabels.length) prevRowLabels(i) = ""
+        for (var i in iter.range(k, prevRowLabels.length)) {
+          prevRowLabels[i] = "";
+        }
       }
 
-      createIx(int r) {
-        val vls = isca.strList(index.raw(r));
-//        val lst = for ((i, l, v) <- enumZip(ilens, vls)) yield {
-//          val fmt = "%" + l + "s"
-//          val res = if (i == vls.length - 1 || prevRowLabels(i) != v) {
-//            resetRowLabels(i+1)
-//            v.formatted(fmt)
-//          }
-//          else "".formatted(fmt)
-//          prevRowLabels(i) = v
-//          res
-//        }
-        lst.mkString(" ");
+      String createIx(int r) {
+        var vls = isca.strList(index.raw(r));
+        var lst = enumZip(ilens, vls).map((tup) {
+          int i = tup.value1, l = tup.value2;
+          String v = tup.value3;
+          String res;
+          if (i == vls.length - 1 || prevRowLabels(i) != v) {
+            resetRowLabels(i + 1);
+            res = v.padLeft(l);
+          } else {
+            res = "".padLeft(l);
+          }
+          prevRowLabels[i] = v;
+          return res;
+        });
+        return lst.join(" ");
       }
 
-      createVal(int r) => ("%" + vlen + "s\n").format(vsca.show(values.raw(r)));
+      String createVal(int r) => "${vsca.show(values.raw(r))}\n".padLeft(vlen);
 
-//      buf.append(util.buildStr(len, length,
-//      (int i) => createIx(i) + " -> " + createVal(i), { resetRowLabels(0); " ... \n" }));
+      buf.write(util.buildStr(
+          len, length, (int i) => createIx(i) + " -> " + createVal(i), () {
+        resetRowLabels(0);
+        return " ... \n";
+      }));
     }
 
     return buf.toString();

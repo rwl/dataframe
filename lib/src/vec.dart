@@ -20,6 +20,7 @@ library saddle.vec;
 
 import 'dart:math' as math;
 import 'dart:collection';
+import 'package:quiver/iterables.dart' as iter;
 
 import 'vec/vec.dart';
 import 'ops/ops.dart';
@@ -561,24 +562,25 @@ abstract class Vec<
    * @param len Max number of elements to include
    */
   String stringify([int len = 10]) {
-//    var half = len ~/ 2;
+    var half = len ~/ 2;
 
     var buf = new StringBuffer();
 
 //    /*implicit*/ var st = scalarTag;
 
-//    var maxf = (int a, String b) => math.max(a, b.length);
+    int maxf(int a, String b) => math.max(a, b.length);
 
     if (length == 0) {
       buf.write("Empty Vec");
     } else {
       buf.write("[$length x 1]\n");
-//      var vlen = (head(half).concat(tail(half)))
-//          .map(scalarTag.show, st)
-//          .foldLeft(0, maxf);
+      int vlen = iter.concat([head(half).toArray(), tail(half).toArray()])
+          .map(scalarTag.show)
+          .fold(0, maxf);
 
-//      String createRow(int r) => ("%" + { (vlen > 0) ? vlen : 1 } + "s\n").format(scalarTag.show(apply(r)))
-      String createRow(int r) => "${scalarTag.show(this[r])}\n";
+      String createRow(int r) {
+        return "${scalarTag.show(apply_(r))}\n".padLeft((vlen > 0) ? vlen : 1);
+      }
       buf.write(util.buildStr(len, length, createRow, () => " ... \n"));
     }
 

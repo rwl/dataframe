@@ -559,8 +559,8 @@ abstract class Index<
 
     var buf = new StringBuffer();
 
-    maxf(List<int> a, List<String> b) =>
-        zip([a, b]).map((v) => v[0].max(v[1].length));
+    List maxf(List<int> a, List<String> b) =>
+        zip([a, b]).map((v) => v[0].max(v[1].length)).toList();
 
     var varr = toArray_();
     var sm = scalarTag;
@@ -568,18 +568,18 @@ abstract class Index<
     if (varr.length == 0) {
       buf.write("Empty Index");
     } else {
-//      var vlens = util
-//          .grab(varr, half)
-//          .map((a) => sm.strList(a))
-//          .toList()
-//          .fold(sm.strList(varr[0]).map((b) => b.length), maxf);
+      List vlens = util
+          .grab(varr, half)
+          .map((a) => sm.strList(a))
+          .toList()
+          .fold(sm.strList(varr[0]).map((b) => b.length), maxf);
 
       buf.write("[Index $length x 1]\n");
 
       createRow(int r) {
-//        var lst =
-//            zip([vlens, sm.strList(raw(r))]).map((z) => "${z[1]}").toList();
-        var lst = sm.strList(raw(r));
+        var lst = zip([vlens, sm.strList(raw(r))])
+            .map((z) => "${z[1]}".padLeft(z[0]))
+            .toList();
         return lst.join(" ") + "\n";
       }
 
