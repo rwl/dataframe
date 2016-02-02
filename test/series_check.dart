@@ -36,7 +36,7 @@ import 'frame_check.dart' show frameDoubleWithNA;
 final Random r = new Random();
 
 const minl = 3;
-const maxl = 20;
+const maxl = 50;
 
 /// Generates series of length of up to [maxl] entries
 ///  with 90% of entries between -1e3/+1e3 and 10% NA
@@ -115,7 +115,7 @@ seriesCheck() {
       var exp = s.extract(i[0]).concat(s.extract(i[1])).concat(s.extract(i[2]));
       expect(res, equals(exp));
     });
-    /*
+
     test("head works", () {
       expect(
           s.head(0), equals(new Series<int, double>.empty(ScalarTag.stDouble)));
@@ -207,14 +207,16 @@ seriesCheck() {
 //          j <- Gen.choose(i, s.length - 1)
 //        } yield (i, j)
 
-      i = r.nextInt(s.length - 1);
-      var j = r.nextInt(s.length - 1 - i) + i;
+      i = r.nextInt(s.length);
+      var j = r.nextInt(s.length - i) + i;
 
 //        forAll(locs) { case (i, j) =>
-      var exp = s.take(range(i, j + 1).toList());
-      expect(s.extractAll(range(i, j).toList()), equals(exp));
+      var exp = s.take(range(i, j + 1).map((n) => n.toInt()).toList());
+      expect(s.extractAll(range(i, j + 1).map((n) => n.toInt()).toList()),
+          equals(exp));
       expect(s.sliceByRange(i, j), equals(exp));
-      expect(s.sliceByRange(i, j, false), equals(s.take(range(i, j).toList())));
+      expect(s.sliceByRange(i, j, false),
+          equals(s.take(range(i, j).map((n) => n.toInt()).toList())));
 //        }
 //      });
     });
@@ -240,11 +242,14 @@ seriesCheck() {
 
         var exp2 = srt.slice(
             srt.index.getFirst(keys[0]), srt.index.getLast(keys[1]) + 1);
-        expect(srt(range(keys[0], keys[1])), equals(exp2));
+//        expect(
+//            srt(
+//                range(keys[0], keys[1]).map((k) => k.toInt()).toList()),
+//            equals(exp2));
         expect(srt.sliceByRange(keys[0], keys[1]), equals(exp2));
 
-        var exp3 = srt.slice(srt.index.getFirst(keys(0)),
-            srt.index.getLast(keys(1)) - srt.index.count(keys(1)) + 1);
+        var exp3 = srt.slice(srt.index.getFirst(keys[0]),
+            srt.index.getLast(keys[1]) - srt.index.count(keys[1]) + 1);
         expect(srt.sliceByRange(keys[0], keys[1], false), equals(exp3));
       }
     });
@@ -268,10 +273,10 @@ seriesCheck() {
       });
     });
 
-    test("filter works", () {
+    /*test("filter works", () {
       expect(s.filter((i) => i > 0).sum() >= 0, isTrue);
       expect(s.filter((i) => i < 0).sum() <= 0, isTrue);
-    });
+    });*/
 
     test("filterAt works", () {
       var i = r.nextInt(s.length - 1);
@@ -286,7 +291,7 @@ seriesCheck() {
       var s2 = seriesIntDoubleWithNA();
       expect(s1.reindex(s2.index).index, equals(s2.index));
     });
-
+    /*
     test("pivot works", () {
       var v1 = rand(8);
       var v3 = rand(7);
@@ -334,9 +339,10 @@ seriesCheck() {
     test("serialization works", () {
       expect(s, equals(serializedCopy(s)));
     });
+    */
   });
 
-  group("Series<DateTime, double> Tests", () {
+  group("Series<DateTime, double>", () {
 //    /*implicit*/ val ser = Arbitrary(SeriesArbitraries.seriesDateTimeDoubleWithNA);
 
     Series<DateTime, double> s;
@@ -391,8 +397,8 @@ seriesCheck() {
 //      expect(srt(range(keys[0], keys[1]).toList()), equals(exp2));
       expect(srt.sliceByRange(keys[0], keys[1]), equals(exp2));
 
-      var exp3 = srt.slice(srt.index.getFirst(keys(0)),
-          srt.index.getLast(keys(1)) - srt.index.count(keys(1)) + 1);
+      var exp3 = srt.slice(srt.index.getFirst(keys[0]),
+          srt.index.getLast(keys[1]) - srt.index.count(keys[1]) + 1);
       expect(srt.sliceByRange(keys[0], keys[1], false), equals(exp3));
     });
 
@@ -418,14 +424,10 @@ seriesCheck() {
       expect(s1.reindex(s2.index).index, equals(s2.index));
     });
 
-    test("serialization works", () {
-//      /*implicit*/ val ser = Arbitrary(SeriesArbitraries.seriesDateTimeDoubleNoDup);
-
-      var s = seriesDateTimeDoubleNoDup();
-      expect(s, equals(serializedCopy(s)));
-    });
-    *
-     */
+//    test("serialization works", () {
+//      var s = seriesDateTimeDoubleNoDup();
+//      expect(s, equals(serializedCopy(s)));
+//    });
   });
 }
 

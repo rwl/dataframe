@@ -412,7 +412,7 @@ import '../scalar/scalar_tag.dart';
     var l = vec.length;
     var s = vec.scalarTag; //implicitly[ST[A]];
     while (i < l) {
-      if (s.isMissing(buf(i))) {
+      if (s.isMissing(buf[i])) {
         buf[i] = f(idx[i]);
       }
       i += 1;

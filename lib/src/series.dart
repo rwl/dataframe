@@ -279,9 +279,7 @@ class Series<X,
    */
   Series<X, T> reindex(Index<X> newIx) {
     var ixer = index.getIndexer(newIx);
-    return ixer != null
-        ? ixer.map((a) => new Series(values.take([a]), newIx))
-        : this;
+    return ixer != null ? new Series(values.take(ixer), newIx) : this;
   }
 
   /**
@@ -941,7 +939,8 @@ class Series<X,
 
     return this.fillNA((key) {
       var loc = proxy.index.getFirst(key);
-      var res = (loc == -1) ? NA : proxy.raw(loc);
+      var res =
+          (loc == -1) ? /*NA*/ values.scalarTag.missing() : proxy.raw(loc);
       return res;
     });
   }
@@ -972,7 +971,7 @@ class Series<X,
     } else {
       buf.write("[$length x 1]\n");
 
-      maxf(List<int> a, List<String> b) =>
+      maxf(Iterable<int> a, Iterable<String> b) =>
           iter.zip([a, b]).map((v) => math.max(v[0], v[1].length));
 
       var isca = index.scalarTag;
@@ -981,7 +980,7 @@ class Series<X,
       var ilens = idxHf
           .toArray()
           .map((i) => isca.strList(i))
-          .fold(isca.strList(vidx(0)).map((s) => s.length), maxf);
+          .fold(isca.strList(vidx[0]).map((s) => s.length), maxf);
 
       var vsca = values.scalarTag;
       var vlHf = values.head(half).concat(values.tail(half));
@@ -991,7 +990,7 @@ class Series<X,
           .fold(2, (a, b) => math.max(a, b.length));
 
       List<Tuple3<int, dynamic, dynamic>> /*[(Int, A, B)]*/ enumZip /*[A, B]*/ (
-          List a, List b) {
+          Iterable a, Iterable b) {
         return iter.zip([iter.enumerate(a), b]).map((l) {
           iter.IndexedValue iv = l[0];
           return new Tuple3(iv.index, iv.value, l[1]);
