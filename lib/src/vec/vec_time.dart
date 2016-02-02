@@ -26,6 +26,8 @@ library saddle.vec.time;
 //import org.saddle.util.Concat.Promoter
 //import org.saddle.buffer.BufferInt
 
+import 'package:quiver/iterables.dart' show enumerate;
+
 import '../vec.dart';
 import 'vec_impl.dart';
 import '../scalar/scalar_tag.dart';
@@ -33,6 +35,7 @@ import '../scalar/scalar_tag_int.dart';
 import '../scalar/scalar_tag_time.dart';
 import '../array/array.dart';
 import '../stats/vec_stats.dart';
+import '../util/concat.dart';
 
 /**
  * A compact native int representation of posix times at millisecond resolution which
@@ -79,15 +82,22 @@ class VecTime extends Vec<DateTime> {
   int get length => times.length;
 
   /*private[saddle]*/
-  DateTime apply_(int loc) => l2t(times(loc));
+  DateTime apply_(int loc) => l2t(times.apply_(loc));
 
   Vec<DateTime> take(List<int> locs) => vl2vt(times.take(locs));
 
   Vec<DateTime> without(List<int> locs) => vl2vt(times.without(locs));
 
   // specialized concatenation
-  Vec<DateTime> concat(VecTime x) =>
-      vl2vt(new Vec(util.Concat.append(times.toArray(), x.times.toArray())));
+  Vec<DateTime> concat(VecTime x, [ScalarTag stc]) {
+    if (stc == null) {
+      stc = times.scalarTag;
+    }
+    return vl2vt(new Vec(
+        Concat.append(times.toArray(), x.times.toArray(), times.scalarTag,
+            x.times.scalarTag, stc),
+        stc));
+  }
 
   // general concatenation
 //  def concat[B, C](v: Vec[B])(implicit wd: Promoter[DateTime, B, C], mc: ST[C]) =
@@ -96,55 +106,59 @@ class VecTime extends Vec<DateTime> {
   Vec<DateTime> operator -() =>
       throw new UnsupportedError("Cannot negate VecTime");
 
-  Vec<DateTime> map /*[@spec(Boolean, Int, Long, Double) B: ST]*/ (
-          dyanmic f(DateTime arg)) =>
-      times.map((v) => f(l2t(v)));
+  Vec map /*[@spec(Boolean, Int, Long, Double) B: ST]*/ (
+          dynamic f(DateTime arg), ScalarTag stb) =>
+      times.map((v) => f(l2t(v)), stb);
 
   Vec flatMap /*[@spec(Boolean, Int, Long, Double) B : ST]*/ (
-          Vec f(DateTime arg)) =>
-      VecImpl.flatMap(this, f);
+          Vec f(DateTime arg), ScalarTag stb) =>
+      VecImpl.flatMap(this, f, stb);
 
   dynamic foldLeft /*[@spec(Boolean, Int, Long, Double) B: ST]*/ (
           init, dynamic f(arg1, DateTime arg2)) =>
       times.foldLeft(init, (a, b) => f(a, l2t(b)));
 
   Vec scanLeft /*[@spec(Boolean, Int, Long, Double) B: ST]*/ (
-          init, dyanmic f(arg1, DateTime arg2)) =>
-      times.scanLeft(init, (a, b) => f(a, l2t(b)));
+          init, dynamic f(arg1, DateTime arg2), ScalarTag stb) =>
+      times.scanLeft(init, (a, b) => f(a, l2t(b)), stb);
 
   dynamic filterFoldLeft /*[@spec(Boolean, Int, Long, Double) B: ST]*/ (
           bool pred(DateTime arg), init, dynamic f(arg1, DateTime arg2)) =>
       times.filterFoldLeft((a) => pred(l2t(a)), init, (a, b) => f(a, l2t(b)));
 
   Vec filterScanLeft /*[@spec(Boolean, Int, Long, Double) B: ST]*/ (
-          bool pred(DateTime arg), init, dynamic f(arg1, DateTime arg2)) =>
-      times.filterScanLeft((a) => pred(l2t(a)), init, (a, b) => f(a, l2t(b)));
+          bool pred(DateTime arg),
+          init,
+          dynamic f(arg1, DateTime arg2),
+          ScalarTag stb) =>
+      times.filterScanLeft(
+          (a) => pred(l2t(a)), init, (a, b) => f(a, l2t(b)), stb);
 
   dynamic foldLeftWhile /*[@spec(Boolean, Int, Long, Double) B: ST]*/ (init,
           dynamic f(arg1, DateTime arg2), bool cond(arg1, DateTime arg2)) =>
       times.foldLeftWhile(
-          init, (a, b) => f(a, l2t(b)))((a, b) => cond(a, l2t(b)));
+          init, (a, b) => f(a, l2t(b)), (a, b) => cond(a, l2t(b)));
 
   Vec zipMap /*[@spec(Boolean, Int, Long, Double) B: ST, @spec(Boolean, Int, Long, Double) C: ST]*/ (
-          Vec other, dynamci f(DateTime arg1, arg2)) =>
-      times.zipMap(other, (a, b) => f(l2t(a), b));
+          Vec other, dynamic f(DateTime arg1, arg2), ScalarTag stc) =>
+      times.zipMap(other, (a, b) => f(l2t(a), b), stc);
 
-  void dropNA() => vl2vt(times.dropNA());
+  Vec<DateTime> dropNA() => vl2vt(times.dropNA());
 
   bool get hasNA => times.hasNA;
 
   Vec rolling /*[@spec(Boolean, Int, Long, Double) B: ST]*/ (
-          int winSz, dynamic f(Vec<DateTime> arg)) =>
-      times.rolling(winSz, (a) => f(vl2vt(a)));
+          int winSz, dynamic f(Vec<DateTime> arg), ScalarTag stc) =>
+      times.rolling(winSz, (a) => f(vl2vt(a)), stc);
 
-  Vec<DateTime> slice(int from, int until, int stride) =>
+  Vec<DateTime> slice(int from, int until, [int stride = 1]) =>
       vl2vt(times.slice(from, until, stride));
 
   Vec<DateTime> shift(int n) => vl2vt(times.shift(n));
 
   @override
   Vec<DateTime> sorted(/*implicit ev: ORD<DateTime>, st: ST<DateTime>*/) =>
-      take(array.argsort(times.toArray()));
+      take(array.argsort(times.toArray(), times.scalarTag));
 
   @override
   Vec<DateTime> pad() => vl2vt(times.pad());
@@ -171,14 +185,14 @@ class VecTime extends Vec<DateTime> {
    * Create a new VecTime from an array of times
    */
   factory VecTime.fromList(List<DateTime> times) {
-    var millis = array.empty(times.length);
+    var millis = array.empty(times.length, sm);
     var i = 0;
     while (i < millis.length) {
-      val t = times(i);
-      millis[i] = sm.isMissing(t) ? sl.missing : t.getMillis;
+      var t = times[i];
+      millis[i] = sm.isMissing(t) ? sl.missing : t.millisecondsSinceEpoch;
       i += 1;
     }
-    return new VecTime(Vec(millis));
+    return new VecTime(new Vec(millis, sm));
   }
 
   /**
@@ -204,7 +218,7 @@ class VecTime extends Vec<DateTime> {
       if (v is VecTime) {
         return v;
       } else {
-        return new VecTime(v.toArray);
+        return new VecTime.fromList(v.toArray());
       }
     }).toList();
 
@@ -216,7 +230,7 @@ class VecTime extends Vec<DateTime> {
     var c = 0; // byte counter
     enumerate(vecs).forEach((iv) {
       var v = iv.value;
-      var vidx = iv.index;
+//      var vidx = iv.index;
       var vlen = v.length;
       var i = 0;
       while (i < vlen) {
@@ -226,6 +240,6 @@ class VecTime extends Vec<DateTime> {
       }
     });
 
-    return new VecTime(new Vec(databuf));
+    return new VecTime(new Vec(databuf, sl));
   }
 }

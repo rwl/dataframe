@@ -253,7 +253,8 @@ class Series<X,
    * whose key-value pairs maintain the original ordering.
    * @param keys Array of keys
    */
-  Series<X, T> extract(List<X> keys) => take(index(keys));
+  Series<X, T> extractAll(List<X> keys) => take(index(keys));
+  Series<X, T> extract(X key) => extractAll([key]);
 
   /**
    * Extract a Series corresponding to those keys provided. Returns a new Series
@@ -332,9 +333,14 @@ class Series<X,
    * @tparam U type of other Series Values
    * @tparam V type of resulting Series values
    */
-  Series /*[X, V]*/ concat /*[U, V]*/ (Series /*[X, U]*/ other,
-          ScalarTag stv) /*(implicit pro: Promoter[T, U, V], md: ST[V])*/ =>
-      new Series(values.concat(other.values), index.concat(other.index));
+  Series /*[X, V]*/ concat /*[U, V]*/ (Series<X, dynamic> /*[X, U]*/ other,
+      [ScalarTag stv]) /*(implicit pro: Promoter[T, U, V], md: ST[V])*/ {
+    if (stv == null) {
+      stv = values.scalarTag;
+    }
+    return new Series(
+        values.concat(other.values, stv), index.concat(other.index));
+  }
 
   /**
    * Additive inverse of Series with numeric elements
@@ -1117,8 +1123,13 @@ class Series<X,
    * @tparam X Type of keys
    * @tparam T Type of values
    */
-  factory Series.empty /*[X: ST: ORD, T: ST]*/ (ScalarTag scx, ScalarTag sct) =>
-      new Series<X, T>(new Vec<T>.empty(sct), new Index<X>.empty(scx));
+  factory Series.empty /*[X: ST: ORD, T: ST]*/ (ScalarTag<T> sct,
+      [ScalarTag<X> scx]) {
+    if (scx == null) {
+      scx = ScalarTag.stInt;
+    }
+    return new Series<X, T>(new Vec<T>.empty(sct), new Index<X>.empty(scx));
+  }
 
   /**
    * Factory method to create a Series from a Vec and an Index

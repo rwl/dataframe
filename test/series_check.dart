@@ -48,7 +48,7 @@ Series<int, double> seriesIntDoubleWithNA() {
     }
   });
   var values = new Vec(lst, ScalarTag.stDouble);
-  return new Series.vec(values);
+  return Series.fromVec(values);
 }
 
 /// As above, but with arbitrary duplicates in (unsorted) index
@@ -110,27 +110,28 @@ seriesCheck() {
     test("take works", () {
       var i = new List<int>.generate(3, (_) => r.nextInt(s.length - 1));
       var res = s.take(i);
-      var exp =
-          s.extract([i[0]]).concat(s.extract([i[1]])).concat(s.extract([i[2]]));
+      var exp = s.extract(i[0]).concat(s.extract(i[1])).concat(s.extract(i[2]));
       expect(res, equals(exp));
     });
 
     test("head works", () {
-      expect(s.head(0), equals(new Series<int, double>.empty()));
+      expect(
+          s.head(0), equals(new Series<int, double>.empty(ScalarTag.stDouble)));
       if (s.length == 1) {
-        expect(s.head(1), equals(s.extract([0])));
+        expect(s.head(1), equals(s.extract(0)));
       } else {
-        var exp = s.extract([0]).concat(s.extract([1]));
+        var exp = s.extract(0).concat(s.extract(1));
         expect(s.head(2), equals(exp));
       }
     });
 
     test("tail works", () {
-      expect(s.tail(0), equals(new Series<int, double>.empty()));
+      expect(
+          s.tail(0), equals(new Series<int, double>.empty(ScalarTag.stDouble)));
       if (s.length == 1) {
-        expect(s.tail(1), equals(s.extract([0])));
+        expect(s.tail(1), equals(s.extract(0)));
       } else {
-        var exp = s.extract([s.length - 2]).concat(s.extract([s.length - 1]));
+        var exp = s.extract(s.length - 2).concat(s.extract(s.length - 1));
         expect(s.tail(2), equals(exp));
       }
     });
@@ -139,7 +140,8 @@ seriesCheck() {
       expect(s.shift(1).index, equals(s.index));
 
       if (!s.isEmpty) {
-        var exp = new Vec([double.NAN]).concat(s.values.slice(0, s.length - 1));
+        var exp = new Vec([double.NAN], ScalarTag.stDouble)
+            .concat(s.values.slice(0, s.length - 1));
         expect(s.shift(1).values, equals(exp));
       } else {
         expect(s.shift(1).isEmpty, isTrue);
@@ -148,7 +150,9 @@ seriesCheck() {
       expect(s.shift(-1).index, equals(s.index));
 
       if (!s.isEmpty) {
-        var exp = s.values.slice(1, s.length).concat(new Vec([double.NAN]));
+        var exp = s.values
+            .slice(1, s.length)
+            .concat(new Vec([double.NAN], ScalarTag.stDouble));
         expect(s.shift(-1).values, equals(exp));
       } else {
         expect(s.shift(1).isEmpty, isTrue);
@@ -171,23 +175,23 @@ seriesCheck() {
       }
     });
 
-    test("first (key) works", () {
+    test("firstValue works", () {
 //      /*implicit*/ val ser = Arbitrary(SeriesArbitraries.dupSeriesDoubleWithNA);
 
       s = dupSeriesIntDoubleWithNA();
       var i = r.nextInt(s.length - 1);
       var idx = s.index.raw(i);
-      expect(
-          s.first(idx), equals(s.values.at(s.index.findOne((j) => j == idx))));
+      expect(s.firstValue(idx),
+          equals(s.values.at(s.index.findOne((j) => j == idx))));
     });
 
-    test("last (key) works", () {
+    test("lastValue works", () {
 //      /*implicit*/ val ser = Arbitrary(SeriesArbitraries.dupSeriesDoubleWithNA);
 
       s = dupSeriesIntDoubleWithNA();
       var i = r.nextInt(s.length - 1);
       var idx = s.index.raw(i);
-      expect(s.last(idx), equals(s(idx).tail(1).at(0)));
+      expect(s.lastValue(idx), equals(s.extract(idx).tail(1).at(0)));
     });
 
     test("apply/slice (no index dups) works", () {

@@ -33,6 +33,7 @@ import '../stats/vec_stats.dart';
 import '../stats/vec_rolling_stats.dart';
 import '../stats/vec_expanding_stats.dart';
 import 'vec_impl.dart';
+import '../util/concat.dart';
 
 class VecDouble extends Vec<double>
     with DoubleStats, DoubleExpandingStats, VecRollingStats {
@@ -65,9 +66,16 @@ class VecDouble extends Vec<double>
 
   Vec<double> operator -() => map((x) => -x, scalarTag);
 
-  Vec /*<C>*/ concat /*[B, C]*/ (
-          Vec /*<B>*/ v) /*(implicit wd: Promoter[Double, B, C], mc: ST[C])*/ =>
-      new Vec(util.Concat.append /*[Double, B, C]*/ (toArray(), v.toArray()));
+  Vec /*<C>*/ concat /*[B, C]*/ (Vec /*<B>*/ v,
+      [ScalarTag stc]) /*(implicit wd: Promoter[Double, B, C], mc: ST[C])*/ {
+    if (stc == null) {
+      stc = scalarTag;
+    }
+    return new Vec(
+        Concat.append /*[Double, B, C]*/ (
+            toArray(), v.toArray(), scalarTag, v.scalarTag, stc),
+        stc);
+  }
 
   /*B*/ dynamic foldLeft /*[@spec(Boolean, Int, Long, Double) B: ST]*/ (
           init, dynamic f(arg1, double arg2)) /*(B f(B, Double))*/ =>

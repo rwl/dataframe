@@ -253,8 +253,8 @@ abstract class Vec<
    * @tparam B type of other Vec elements
    * @tparam C type of resulting Vec elements
    */
-  Vec /*<C>*/ concat /*[B, C]*/ (
-      Vec /*<B>*/ v) /*(implicit wd: Promoter[T, B, C], mc: ST[C])*/;
+  Vec /*<C>*/ concat /*[B, C]*/ (Vec /*<B>*/ v,
+      [ScalarTag stc]) /*(implicit wd: Promoter[T, B, C], mc: ST[C])*/;
 
   /**
    * Additive inverse of Vec with numeric elements

@@ -32,6 +32,7 @@ import '../array/array.dart';
 import '../stats/vec_stats.dart';
 import '../stats/vec_expanding_stats.dart';
 import '../stats/vec_rolling_stats.dart';
+import '../util/concat.dart';
 
 class VecInt extends Vec<int>
     with IntStats, IntExpandingStats, VecRollingStats {
@@ -63,9 +64,16 @@ class VecInt extends Vec<int>
 
   Vec<int> operator -() => map((x) => -x, scalarTag);
 
-  Vec /*<C>*/ concat /*[B, C]*/ (
-          Vec /*<B>*/ v) /*(implicit wd: Promoter[Int, B, C], mc: ST[C])*/ =>
-      new Vec(util.Concat.append /*[Int, B, C]*/ (toArray(), v.toArray()));
+  Vec /*<C>*/ concat /*[B, C]*/ (Vec /*<B>*/ v,
+      [ScalarTag stc]) /*(implicit wd: Promoter[Int, B, C], mc: ST[C])*/ {
+    if (stc == null) {
+      stc = scalarTag;
+    }
+    return new Vec(
+        Concat.append /*[Int, B, C]*/ (
+            toArray(), v.toArray(), scalarTag, v.scalarTag, stc),
+        stc);
+  }
 
   /*B*/ foldLeft /*[@spec(Boolean, Int, Long, Double) B: ST]*/ (
           init, dynamic f(arg1, int arg2)) /*(B f(B, Int))*/ =>

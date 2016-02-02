@@ -29,6 +29,7 @@ import '../scalar/scalar_tag.dart';
 import '../scalar/scalar_tag_bool.dart';
 import '../array/array.dart';
 import '../stats/vec_stats.dart';
+import '../util/concat.dart';
 
 class VecBool extends Vec<bool> {
   //self =>
@@ -56,9 +57,15 @@ class VecBool extends Vec<bool> {
 
   Vec<bool> operator -() => map((b) => !b);
 
-  Vec concat(
-          Vec v) /*(implicit wd: Promoter[bool, B, C], mc: ST[C]): Vec[C]*/ =>
-      new Vec(util.Concat.append(toArray(), v.toArray()));
+  Vec concat(Vec v,
+      [ScalarTag stc]) /*(implicit wd: Promoter[bool, B, C], mc: ST[C]): Vec[C]*/ {
+    if (stc == null) {
+      stc = scalarTag;
+    }
+    return new Vec(
+        Concat.append(toArray(), v.toArray(), scalarTag, v.scalarTag, stc),
+        stc);
+  }
 
   dynamic foldLeft /*[@spec(bool, Int, Long, Double) B: ST]*/ (
           init, dynamic f(arg1, bool arg2)) =>

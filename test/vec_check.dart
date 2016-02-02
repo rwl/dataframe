@@ -129,10 +129,10 @@ vecCheck() {
       }
     });
 
-//    test("concat works", () {
-//      var data = v.contents;
-//      expect(v.concat(v), equals(new Vec(concat([data, data]).toList(), st)));
-//    });
+    test("concat works", () {
+      var data = v.contents;
+      expect(v.concat(v), equals(new Vec(concat([data, data]).toList(), st)));
+    });
 
     test("map works", () {
       var si = ScalarTag.stInt;
