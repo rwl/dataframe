@@ -30,17 +30,18 @@ library saddle.index.time;
 
 import '../array/array.dart';
 import '../index.dart';
-import 'join_type.dart';
 import '../vec.dart';
 import '../scalar/scalar_tag.dart';
 import '../scalar/scalar_tag_int.dart';
 import '../scalar/scalar_tag_time.dart';
 import '../locator/locator.dart';
-import '../index/reindexer.dart';
-import '../index/joiner_impl.dart';
 import '../vec/vec_impl.dart';
 import '../vec/vec_time.dart';
+import '../util/concat.dart';
 
+import 'reindexer.dart';
+import 'joiner_impl.dart';
+import 'join_type.dart';
 import 'index_impl.dart';
 
 /**
@@ -68,7 +69,7 @@ class IndexTime extends Index<DateTime> {
       : new DateTime.fromMillisecondsSinceEpoch(l /*, chrono*/);
   /*private def*/ t2l(DateTime t) =>
       scalarTag.isMissing(t) ? lmf.missing : t.millisecondsSinceEpoch;
-  /*private def*/ il2it(Index<int> l) => new IndexTime(l /*, tzone*/);
+  /*private def*/ IndexTime il2it(Index<int> l) => new IndexTime(l /*, tzone*/);
 
   _Locator _locator;
 //  @transient lazy private val _locator = new Locator<DateTime> {
@@ -115,8 +116,12 @@ class IndexTime extends Index<DateTime> {
   without(List<int> locs) => il2it(times.without(locs));
 
   // specialized concatenation
-  concat(IndexTime x) =>
-      il2it(new Index(util.Concat.append(times.toArray(), x.times.toArray())));
+  IndexTime concat(IndexTime x, [ScalarTag<DateTime> stc]) {
+    return il2it(new Index(
+        Concat.append(times.toArray_(), x.times.toArray_(), times.scalarTag,
+            x.times.scalarTag, ScalarTag.stInt),
+        ScalarTag.stInt));
+  }
 
   // general concatenation
 //  def concat[B, C](x: Index[B])(implicit wd: Promoter[DateTime, B, C], mc: ST[C], oc: ORD[C]) =

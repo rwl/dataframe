@@ -14,7 +14,7 @@
  * limitations under the License.
  **/
 
-library saddle.test;
+library saddle.test.frame_check;
 
 //import org.specs2.mutable.Specification
 //import org.specs2.ScalaCheck

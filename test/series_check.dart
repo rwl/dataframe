@@ -14,7 +14,7 @@
  * limitations under the License.
  **/
 
-library saddle.test;
+library saddle.test.series_check;
 
 //import org.saddle.Serde._
 //import org.specs2.mutable.Specification
@@ -26,10 +26,12 @@ library saddle.test;
 //import org.saddle.time._
 
 import 'dart:math' show Random;
+import 'package:quiver/iterables.dart' show range;
 
 import 'package:test/test.dart';
 import 'package:dataframe/dataframe.dart';
 import 'index_check.dart' show getDate;
+import 'frame_check.dart' show frameDoubleWithNA;
 
 final Random r = new Random();
 
@@ -95,7 +97,7 @@ Series<DateTime, double> dupSeriesDateTimeDoubleWithNA() {
 
 //class SeriesCheck extends Specification with ScalaCheck {
 seriesCheck() {
-  group("Series<int, double> Tests", () {
+  group("Series<int, double>", () {
 //    /*implicit*/ var ser = Arbitrary(SeriesArbitraries.seriesDoubleWithNA);
     Series<int, double> s;
     setUp(() {
@@ -113,7 +115,7 @@ seriesCheck() {
       var exp = s.extract(i[0]).concat(s.extract(i[1])).concat(s.extract(i[2]));
       expect(res, equals(exp));
     });
-
+    /*
     test("head works", () {
       expect(
           s.head(0), equals(new Series<int, double>.empty(ScalarTag.stDouble)));
@@ -195,9 +197,9 @@ seriesCheck() {
     });
 
     test("apply/slice (no index dups) works", () {
-      var i = Gen.listOfN(3, Gen.choose(0, s.length - 1));
+      var i = r.nextInt(s.length - 1);
 
-      expect(s(i), equals(s.take(i)));
+      expect(s.extract(i), equals(s.take([i])));
 //          s(i : _*), equals(s.take(i);
 
 //        val locs = for {
@@ -205,11 +207,14 @@ seriesCheck() {
 //          j <- Gen.choose(i, s.length - 1)
 //        } yield (i, j)
 
+      i = r.nextInt(s.length - 1);
+      var j = r.nextInt(s.length - 1 - i) + i;
+
 //        forAll(locs) { case (i, j) =>
-//          val exp = s.take(Range(i, j+1).toArray);
-//          expect(s(i -> j), equals(exp));
-//          expect(s.sliceBy(i, j), equals(exp));
-//          expect(s.sliceBy(i, j, inclusive = false), equals(s.take(Range(i, j).toArray)));
+      var exp = s.take(range(i, j + 1).toList());
+      expect(s.extractAll(range(i, j).toList()), equals(exp));
+      expect(s.sliceByRange(i, j), equals(exp));
+      expect(s.sliceByRange(i, j, false), equals(s.take(range(i, j).toList())));
 //        }
 //      });
     });
@@ -220,25 +225,28 @@ seriesCheck() {
       s = dupSeriesIntDoubleWithNA();
       var i = new List<int>.generate(3, (_) => r.nextInt(s.length - 1));
 
-//      expect(i.length, lessThanOrEqualTo(2)) or {
-//        val locs = i.toArray;
-//        val keys = s.index.take(locs).toArray;
-//        val exp = s(keys(0)) concat s(keys(1)) concat s(keys(2));
-//
-//        expect(s(keys), equals(exp));
+      if (i.length > 2) {
+        var locs = i; //.toArray;
+        var keys = s.index.take(locs).toArray_();
+        var exp = s
+            .extract(keys[0])
+            .concat(s.extract(keys[1]))
+            .concat(s.extract(keys[2]));
+
+        expect(s.extractAll(keys), equals(exp));
 //        expect(s(keys : _*), equals(exp));
-//
-//        val srt = s.sortedIx;
-//
-//        val exp2 = srt.slice(srt.index.getFirst(keys(0)),
-//                               srt.index.getLast(keys(1)) + 1);
-//        expect(srt(keys(0) -> keys(1)), equals(exp2));
-//        expect(srt.sliceBy(keys(0), keys(1)), equals(exp2));
-//
-//        val exp3 = srt.slice(srt.index.getFirst(keys(0)),
-//                               srt.index.getLast(keys(1)) - srt.index.count(keys(1)) + 1);
-//        expect(srt.sliceBy(keys(0), keys(1), inclusive = false), equals(exp3));
-//      }
+
+        var srt = s.sortedIx();
+
+        var exp2 = srt.slice(
+            srt.index.getFirst(keys[0]), srt.index.getLast(keys[1]) + 1);
+        expect(srt(range(keys[0], keys[1])), equals(exp2));
+        expect(srt.sliceByRange(keys[0], keys[1]), equals(exp2));
+
+        var exp3 = srt.slice(srt.index.getFirst(keys(0)),
+            srt.index.getLast(keys(1)) - srt.index.count(keys(1)) + 1);
+        expect(srt.sliceByRange(keys[0], keys[1], false), equals(exp3));
+      }
     });
 
     test("splitAt works", () {
@@ -253,15 +261,16 @@ seriesCheck() {
       var s1 = seriesIntDoubleWithNA();
       var s2 = seriesIntDoubleWithNA();
       var proxied = s1.proxyWith(s2);
-//        val all = for (i <- 0 until proxied.length if s1.at(i).isNA && i < s2.length) yield {
-//          proxied.at(i), equals(s2.at(i)
-//        }
-      all.foldLeft(true)((acc, v) => acc && v.isSuccess);
+      range(proxied.length)
+          .where((i) => s1.at(i).isNA && i < s2.length)
+          .forEach((i) {
+        expect(proxied.at(i), equals(s2.at(i)));
+      });
     });
 
     test("filter works", () {
-      expect(s.filter((i) => i > 0).sum >= 0, isTrue);
-      expect(s.filter((i) => i < 0).sum <= 0, isTrue);
+      expect(s.filter((i) => i > 0).sum() >= 0, isTrue);
+      expect(s.filter((i) => i < 0).sum() <= 0, isTrue);
     });
 
     test("filterAt works", () {
@@ -279,12 +288,27 @@ seriesCheck() {
     });
 
     test("pivot works", () {
-      var v1 = vec.rand(8);
-      var v3 = vec.rand(7);
-//      var x1 = new Index(("a", "1m"), ("a", "3m"), ("a", "6m"),  ("a", "1y"),  ("a", "2y"), ("a", "3y"),
-//                     ("a", "10y"), ("a", "20y"))
-//      var x2 = new Index(("b", "1m"), ("b", "3m"), ("b", "6m"),  ("b", "1y"),  ("b", "2y"), ("b", "3y"),
-//                     ("b", "20y"))
+      var v1 = rand(8);
+      var v3 = rand(7);
+      var x1 = new Index.fromTuples([
+        new Tuple2("a", "1m"),
+        new Tuple2("a", "3m"),
+        new Tuple2("a", "6m"),
+        new Tuple2("a", "1y"),
+        new Tuple2("a", "2y"),
+        new Tuple2("a", "3y"),
+        new Tuple2("a", "10y"),
+        new Tuple2("a", "20y")
+      ]);
+      var x2 = new Index([
+        new Tuple2("b", "1m"),
+        new Tuple2("b", "3m"),
+        new Tuple2("b", "6m"),
+        new Tuple2("b", "1y"),
+        new Tuple2("b", "2y"),
+        new Tuple2("b", "3y"),
+        new Tuple2("b", "20y")
+      ]);
 
       var a = new Series(v1, x1);
       var b = new Series(v3, x2);
@@ -292,8 +316,11 @@ seriesCheck() {
       var c = a.concat(b);
 
       var dat1 = v1.toDoubleArray();
-//      val dat2 = v3.sliceBy(0, 5).toDoubleArray ++ Array(na.to[Double]) ++ v3.sliceBy(6,7).toDoubleArray;
-//      val exp   = Frame(Mat(2, 8, dat1 ++ dat2), Index("a", "b"), x1.map(_._2));
+      var dat2 = v3.sliceBy(0, 5).toDoubleArray()
+        ..add(double.NAN)
+        ..addAll(v3.sliceBy(6, 7).toDoubleArray());
+      var exp = Frame.fromMat(new Mat(2, 8, dat1..addAll(dat2)),
+          new Index("a", "b"), x1.map((tup) => tup.value2));
 
       expect(c.pivot, equals(exp));
     });
@@ -334,38 +361,39 @@ seriesCheck() {
     test("first (key) works", () {
       var i = r.nextInt(s.length - 1);
       var idx = s.index.raw(i);
-      expect(
-          s.first(idx), equals(s.values.at(s.index.findOne((j) => j == idx))));
+      expect(s.firstValue(idx),
+          equals(s.values.at(s.index.findOne((j) => j == idx))));
     });
 
     test("last (key) works", () {
       var i = r.nextInt(s.length - 1);
       var idx = s.index.raw(i);
-      expect(s.last(idx), equals(s(idx).tail(1).at(0)));
+      expect(s.lastValue(idx), equals(s.extract(idx).tail(1).at(0)));
     });
 
     test("apply/slice (with index dups) works", () {
       var i = new List<int>.generate(3, (_) => r.nextInt(s.length - 1));
 
-//      expect(i.length, lessThanOrEqualTo(2)) or {
-//        val locs = i.toArray;
-//        val keys = s.index.take(locs).toArray;
-//        val exp = s(keys(0)) concat s(keys(1)) concat s(keys(2));
-//
-//        expect(s(keys), equals(exp));
+      var locs = i;
+      var keys = s.index.take(locs).toArray_();
+      var exp = s
+          .extract(keys[0])
+          .concat(s.extract(keys[1]))
+          .concat(s.extract(keys[2]));
+
+      expect(s.extractAll(keys), equals(exp));
 //        expect(s(keys : _*), equals(exp));
-//
-//        val srt = s.sortedIx;
-//
-//        val exp2 = srt.slice(srt.index.getFirst(keys(0)),
-//                             srt.index.getLast(keys(1)) + 1);
-//        expect(srt(keys(0) -> keys(1)), equals(exp2));
-//        expect(srt.sliceBy(keys(0), keys(1)), equals(exp2));
-//
-//        val exp3 = srt.slice(srt.index.getFirst(keys(0)),
-//                             srt.index.getLast(keys(1)) - srt.index.count(keys(1)) + 1);
-//        expect(srt.sliceBy(keys(0), keys(1), inclusive = false), equals(exp3));
-//      }
+
+      var srt = s.sortedIx();
+
+      var exp2 = srt.slice(
+          srt.index.getFirst(keys[0]), srt.index.getLast(keys[1]) + 1);
+//      expect(srt(range(keys[0], keys[1]).toList()), equals(exp2));
+      expect(srt.sliceByRange(keys[0], keys[1]), equals(exp2));
+
+      var exp3 = srt.slice(srt.index.getFirst(keys(0)),
+          srt.index.getLast(keys(1)) - srt.index.count(keys(1)) + 1);
+      expect(srt.sliceByRange(keys[0], keys[1], false), equals(exp3));
     });
 
     test("proxyWith", () {
@@ -374,10 +402,11 @@ seriesCheck() {
       var s1 = seriesDateTimeDoubleNoDup();
       var s2 = seriesDateTimeDoubleNoDup();
       var proxied = s1.proxyWith(s2);
-//      var all = for (i <- 0 until proxied.length if s1.at(i).isNA && i < s2.length) yield {
-//        proxied.at(i), equals(s2.at(i)
-//      }
-//      all.foldLeft(true)((acc, v) => acc && v.isSuccess);
+      range(proxied.length)
+          .where((i) => s1.at(i).isNA && i < s2.length)
+          .forEach((i) {
+        expect(proxied.at(i), equals(s2.at(i)));
+      });
     });
 
     test("reindex works", () {
@@ -395,5 +424,13 @@ seriesCheck() {
       var s = seriesDateTimeDoubleNoDup();
       expect(s, equals(serializedCopy(s)));
     });
+    *
+     */
   });
+}
+
+main() {
+  for (var i = 0; i < 1; i++) {
+    seriesCheck();
+  }
 }

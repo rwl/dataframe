@@ -35,6 +35,7 @@ import '../index/reindexer.dart';
 import '../index/joiner_impl.dart';
 import '../vec/vec_impl.dart';
 import '../vec/vec_bool.dart';
+import '../util/concat.dart';
 
 import 'index_impl.dart';
 
@@ -71,16 +72,22 @@ class IndexBool extends Index<bool> {
   Index<bool> without(List<int> locs) =>
       new Index<bool>(array.remove(keys.toArray(), locs), scalarTag);
 
-  Index /*[C]*/ concat /*[B, C]*/ (
-          Index /*<B>*/ x) /*(implicit wd: Promoter[Boolean, B, C], mc: ST[C], oc: ORD[C])*/ =>
-      new Index(
-          util.Concat.append /*[Boolean, B, C]*/ (toArray(), x.toArray()));
+  Index /*[C]*/ concat /*[B, C]*/ (Index /*<B>*/ x,
+      [ScalarTag stc]) /*(implicit wd: Promoter[Boolean, B, C], mc: ST[C], oc: ORD[C])*/ {
+    if (stc == null) {
+      stc = scalarTag;
+    }
+    return new Index(
+        Concat.append /*[Boolean, B, C]*/ (
+            toArray_(), x.toArray_(), scalarTag, x.scalarTag, stc),
+        stc);
+  }
 
   bool get isMonotonic => _keys2map.props.monotonic;
 
   bool get isContiguous => isUnique || _keys2map.props.contiguous;
 
-  List<int> argSort() => VecBool.argSort(keys);
+  List<int> argSort() => VecBool.argSort(keys.toArray());
 
   Index<bool> get reversed => new IndexBool(toVec().reversed);
 
@@ -127,7 +134,7 @@ class IndexBool extends Index<bool> {
           dynamic f(bool arg), ScalarTag scb) =>
       new Index(VecImpl.map(keys, f, scb).toArray(), scb);
 
-  List<bool> toArray() => keys.toArray();
+  List<bool> toArray_() => keys.toArray();
 
   /**Default equality does an iterative, element-wise equality check of all values. */
   @override

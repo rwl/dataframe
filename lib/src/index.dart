@@ -157,8 +157,8 @@ abstract class Index<
    * @tparam B Type of other index
    * @tparam C Result of promoting types A, B
    */
-  Index /*<C>*/ concat /*[B, C]*/ (
-      Index /*<B>*/ other) /*(implicit p: Promoter[T, B, C], mc: ST[C], oc: ORD[C])*/;
+  Index /*<C>*/ concat /*[B, C]*/ (Index /*<B>*/ other,
+      [ScalarTag stc]) /*(implicit p: Promoter[T, B, C], mc: ST[C], oc: ORD[C])*/;
 
   /**
    * Find the first location whereby inserting a key would maintain a sorted index. Index

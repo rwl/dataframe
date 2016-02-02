@@ -32,6 +32,8 @@ import '../array/array.dart';
 import '../vec.dart';
 import '../vec/vec_int.dart';
 import '../locator/locator.dart';
+import '../util/concat.dart';
+
 import 'join_type.dart';
 import 'index_impl.dart';
 import 'joiner_impl.dart';
@@ -85,8 +87,15 @@ class IndexIntRange extends Index<int> {
       new Index<int>(array.remove(asArr, locs), scalarTag);
 
   Index /*[C]*/ concat /*[B, C]*/ (Index /*[B]*/ x,
-          ScalarTag scc) /*(implicit wd: Promoter[Int, B, C], mc: ST[C], oc: ORD[C])*/ =>
-      new Index(util.Concat.append /*[Int, B, C]*/ (toArray, x.toArray), scc);
+      [ScalarTag stc]) /*(implicit wd: Promoter[Int, B, C], mc: ST[C], oc: ORD[C])*/ {
+    if (stc == null) {
+      stc = scalarTag;
+    }
+    return new Index(
+        Concat.append /*[Int, B, C]*/ (
+            toArray_(), x.toArray_(), scalarTag, x.scalarTag, stc),
+        stc);
+  }
 
   // find the first location whereby an insertion would maintain a sorted index
   lsearch(int t) => math.min(math.max(0, from + t), from + length);

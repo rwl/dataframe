@@ -2009,10 +2009,8 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
   /**
    * Build a Frame from a provided Mat
    */
-  static Frame<int, int, dynamic> frameFromMat(Mat<T> values) => new Frame(
-      values,
-      new IndexIntRange(values.numRows),
-      new IndexIntRange(values.numCols));
+  static Frame<int, int, dynamic> fromMat(Mat<T> values) => new Frame(values,
+      new IndexIntRange(values.numRows), new IndexIntRange(values.numCols));
 
   /**
    * Build a Frame from a provided Mat, row index, and col index

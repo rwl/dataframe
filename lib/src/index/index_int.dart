@@ -29,7 +29,6 @@ import 'package:collection/algorithms.dart' show binarySearch;
 
 import '../array/array.dart';
 import '../index.dart';
-import 'join_type.dart';
 import '../vec.dart';
 import '../scalar/scalar_tag.dart';
 import '../scalar/scalar_tag_int.dart';
@@ -37,7 +36,9 @@ import '../locator/locator.dart';
 import '../index/reindexer.dart';
 import '../index/joiner_impl.dart';
 import '../vec/vec_impl.dart';
+import '../util/concat.dart';
 
+import 'join_type.dart';
 import 'index_impl.dart';
 
 /**
@@ -74,9 +75,16 @@ class IndexInt extends Index<int> {
   Index<int> without(List<int> locs) =>
       new Index(array.remove(keys.toArray(), locs), scalarTag);
 
-  Index /*<C>*/ concat /*[B, C]*/ (
-          Index /*<B>*/ x) /*(implicit wd: Promoter[Int, B, C], mc: ST[C], oc: ORD[C])*/ =>
-      new Index(util.Concat.append /*[Int, B, C]*/ (toArray, x.toArray));
+  Index /*<C>*/ concat /*[B, C]*/ (Index /*<B>*/ x,
+      [ScalarTag stc]) /*(implicit wd: Promoter[Int, B, C], mc: ST[C], oc: ORD[C])*/ {
+    if (stc == null) {
+      stc = scalarTag;
+    }
+    return new Index(
+        Concat.append /*[Int, B, C]*/ (
+            toArray_(), x.toArray_(), scalarTag, x.scalarTag, stc),
+        stc);
+  }
 
   bool get isMonotonic => _keys2map.props.monotonic;
 

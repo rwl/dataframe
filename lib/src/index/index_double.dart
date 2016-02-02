@@ -37,6 +37,7 @@ import '../locator/locator.dart';
 import '../index/reindexer.dart';
 import '../index/joiner_impl.dart';
 import '../vec/vec_impl.dart';
+import '../util/concat.dart';
 
 import 'index_impl.dart';
 
@@ -74,9 +75,16 @@ class IndexDouble extends Index<double> {
   Index<double> without(List<int> locs) =>
       new Index(array.remove(keys.toArray(), locs), scalarTag);
 
-  Index /*<C>*/ concat /*[B, C]*/ (Index<
-          B> x) /*(implicit wd: Promoter[Double, B, C], mc: ST[C], oc: ORD[C])*/ =>
-      Index(util.Concat.append /*[Double, B, C]*/ (toArray(), x.toArray()));
+  Index /*<C>*/ concat /*[B, C]*/ (Index /*<B>*/ x,
+      [ScalarTag stc]) /*(implicit wd: Promoter[Double, B, C], mc: ST[C], oc: ORD[C])*/ {
+    if (stc == null) {
+      stc = scalarTag;
+    }
+    return new Index(
+        Concat.append /*[Double, B, C]*/ (
+            toArray_(), x.toArray_(), scalarTag, x.scalarTag, stc),
+        stc);
+  }
 
   bool get isMonotonic => _keys2map.props.monotonic;
 

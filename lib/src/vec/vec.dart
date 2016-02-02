@@ -107,7 +107,7 @@ Vec<double> zeros(int sz) => new Vec(
  * @param until End of range, excluded from result
  * @param step Stride of range
  */
-Vec<int> range(int from, int until, [int step = 1]) =>
+Vec<int> vrange(int from, int until, [int step = 1]) =>
     array.range(from, until, step);
 
 /**
@@ -117,7 +117,7 @@ Vec<int> range(int from, int until, [int step = 1]) =>
  * @param n number of repetitions
  * @tparam T type of elements in array
  */
-List /*<T>*/ repeat /*[@spec(Boolean, Int, Long, Double) T: ST]*/ (
+List /*<T>*/ vrepeat /*[@spec(Boolean, Int, Long, Double) T: ST]*/ (
     List /*<T>*/ v, int n) {
   return array.flatten(iter.range(1, n).map((_) => v));
 }

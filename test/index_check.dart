@@ -14,7 +14,7 @@
  * limitations under the License.
  **/
 
-library saddle.test;
+library saddle.test.index_check;
 
 //import org.saddle.Serde._
 //import org.specs2.mutable.Specification
