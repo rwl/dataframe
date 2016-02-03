@@ -19,7 +19,10 @@ library saddle.mat.cols;
 //import org.saddle._
 //import org.saddle.scalar._
 
+import 'dart:math' as math;
 import 'dart:collection' show ListBase;
+
+import 'package:quiver/iterables.dart';
 
 import '../array/array.dart';
 import '../scalar/scalar.dart';
@@ -45,7 +48,7 @@ class MatCols<A> extends ListBase<Vec<A>> {
 
   final ScalarTag scalarTag; // = implicitly[ST<A>]
 
-  int get numRows => cols.headOption.map((c) => c.length).getOrElse(0);
+  int get numRows => cols.length > 0 ? cols.first.length : 0;
 
   int get numCols => cols.length;
 
@@ -58,10 +61,10 @@ class MatCols<A> extends ListBase<Vec<A>> {
   // ith vector
   Vec<A> apply(int i) => cols[i];
 
-  Scalar<A> at(int r, int c) => cols[c][r];
+  Scalar<A> at(int r, int c) => new Scalar(cols[c][r], scalarTag);
 
   // take vectors at particular locations
-  MatCols<A> take(List<int> locs) {
+  MatCols<A> takeAll(List<int> locs) {
 //    lazy val nullVec = {
     var arr = array.empty /*<A>*/ (numRows, scalarTag);
     array.fill(arr, scalarTag.missing);
@@ -83,7 +86,7 @@ class MatCols<A> extends ListBase<Vec<A>> {
 
   // take all vectors except those at points in loc
   MatCols<A> without(List<int> locs) =>
-      new MatCols(array.remove(this.toArray(), locs), scalarTag);
+      new MatCols(array.remove(this /*.toArray()*/, locs), scalarTag);
 
   // take all vecs that match provided type, along with their locations
   /*private[saddle]*/ TakeType takeType /*[B: ST]*/ (
@@ -115,24 +118,25 @@ class MatCols<A> extends ListBase<Vec<A>> {
 
   // Logic to get string widths of columns in a sequence of vectors
   static /*private[saddle]*/ Map<int, int> colLens(
-      MatCols<A> cols, int numCols, int len) {
-//    var half = len ~/ 2;
-//    var maxf = (int a, String b) => a.max(b.length);
-//
-//    if (numCols <= len) {
-//      range(0, numCols) zip cols.map { v =>
-//        val takeCol = v.head(half) concat v.tail(half)
-//        takeCol.map(k => v.scalarTag.show(k)).foldLeft(2)(maxf)
-//      }
-//    }
-//    else {
-//      val colnums = Range(0, half) ++ Range(numCols - half, numCols)
-//      colnums zip (cols.take(half) ++ cols.takeRight(half)).map { v =>
-//        val takeCol = v.head(half) concat v.tail(half)
-//        takeCol.map(k => v.scalarTag.show(k)).foldLeft(2)(maxf)
-//      }
-//    }
-//  }.toMap
+      MatCols /*<A>*/ cols, int numCols, int len) {
+    var half = len ~/ 2;
+    var maxf = (int a, String b) => math.max(a, b.length);
+
+    if (numCols <= len) {
+      return new Map.fromIterables(range(0, numCols), cols.map((v) {
+        var takeCol = v.head(half).concat(v.tail(half));
+        takeCol.toArray().map((k) => v.scalarTag.show(k)).fold(2, maxf);
+      }));
+    } else {
+      var colnums = range(half).toList()
+        ..addAll(range(numCols - half, numCols));
+      return new Map.fromIterables(
+          colnums,
+          concat([cols.take(half), cols.takeRight(half)]).map((Vec v) {
+            var takeCol = v.head(half).concat(v.tail(half));
+            takeCol.toArray().map((k) => v.scalarTag.show(k)).fold(2, maxf);
+          }));
+    }
   }
 }
 

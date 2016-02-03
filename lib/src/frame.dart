@@ -38,6 +38,7 @@ import 'groupby/index_grouper.dart';
 //import 'util/concat.dart' show Promoter;
 import 'scalar/scalar.dart';
 import 'scalar/scalar_tag.dart';
+import 'scalar/scalar_tag_any.dart';
 //import java.io.OutputStream
 //import org.saddle.mat.MatCols
 import 'mat/mat_cols.dart';
@@ -206,7 +207,8 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    */
   Frame<RX, CX, T> col(List<CX> keys) {
     if (values.numCols == 0) {
-      return new Frame<RX, CX, T>.empty();
+      return new Frame<RX, CX, T>.empty(
+          rowIx.scalarTag, colIx.scalarTag, values.scalarTag);
     } else {
       var locs = array.filter /*[Int]*/ ((a) => a != -1, colIx(keys));
       colAt(locs);
@@ -220,7 +222,7 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    * @param inclusive Whether to include 'to' key; true by default
    */
   Frame<RX, CX, T> colSliceBy(CX from, CX to, [bool inclusive = true]) {
-    var tmp = new Series(values /*: _**/).setIndex(colIx);
+    var tmp = Series.fromList(values, new ScalarTagAny<Vec>()).setIndex(colIx);
     var res = tmp.sliceByRange(from, to, inclusive);
     return new Frame(res.values.toArray, rowIx, res.index);
   }
@@ -246,7 +248,8 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    */
   Frame<RX, CX, T> colAtTake(List<int> locs) {
     if (values.numCols == 0) {
-      return Frame.empty /*<RX, CX, T>*/ ();
+      return new Frame.empty /*<RX, CX, T>*/ (
+          rowIx.scalarTag, colIx.scalarTag, values.scalarTag);
     } else {
       return new Frame(values.take(locs), rowIx, colIx.take(locs));
     }
@@ -317,10 +320,11 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    */
   Frame<RX, CX, T> row(List<RX> keys) {
     if (values.numRows == 0) {
-      return Frame.empty(); //<RX, CX, T>;
+      return new Frame.empty(
+          rowIx.scalarTag, colIx.scalarTag, values.scalarTag); //<RX, CX, T>;
     } else {
-      var locs = array.filter[Int](_ != -1)(rowIx(keys));
-      return rowAt(locs);
+      var locs = array.filter /*[Int]*/ ((i) => i != -1, rowIx(keys));
+      return rowAtTake(locs);
     }
   }
 
@@ -366,7 +370,7 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
   Frame<RX, CX, T> rowAtSlice(Slice<int> slice) {
     var idx = new IndexIntRange(numRows);
     List pair = slice(idx);
-    return new Frame(values.map(_.slice(pair[0], pair[1])),
+    return new Frame(values.map((v) => v.slice(pair[0], pair[1])),
         rowIx.slice(pair[0], pair[1]), colIx);
   }
 
@@ -387,7 +391,8 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    */
   SplitFrame<RX, CX, T> /*(Frame<RX, CX, T>, Frame<RX, CX, T>)*/ rowSplitAt(
           int r) =>
-      new SplitFrame<RX, CX, T>._(rowSlice(0, r), rowSlice(r, numRows));
+      new SplitFrame<RX, CX, T>._(
+          rowSliceRange(0, r), rowSliceRange(r, numRows));
 
   /**
    * Split Frame into two frames at row key k
@@ -545,8 +550,8 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
     var /*columns1, locs1*/ tt1 = values.takeType(bSt1); //[U1];
     var /*columns2, locs2*/ tt2 = values.takeType(bSt2); //[U2];
 
-    var frm = new Panel(tt1.vecs..addAll(tt2.vecs), rowIx,
-        colIx.take(tt1.i)..addAll(colIx.take(tt2.i)));
+    var frm = Panel.vecsIndex(tt1.vecs..addAll(tt2.vecs), rowIx,
+        colIx.take(tt1.i).concat(colIx.take(tt2.i)));
     var tkr = array.argsort(array.flatten([tt1.i, tt2.i]), ScalarTag.stInt);
 
     return frm.colAt(tkr);
@@ -580,11 +585,8 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
   Frame /*<(T, T), CX, T>*/ with2RowIndex(
       int col1, int col2) /*(implicit ordT: ORD[T])*/ {
     Index /*[(T, T)]*/ newIx =
-        Index.make(this.colAt(col1).toVec(), this.colAt(col2).toVec());
-//    this.setRowIndex(newIx).filterAt { case c => !Set(col1, col2).contains(c) }
-    this
-        .setRowIndex(newIx)
-        .filterAt((c) => !new Set.from([col1, col2]).contains(c));
+        Index.make([this.colAt(col1).toVec(), this.colAt(col2).toVec()]);
+    return this.setRowIndex(newIx).filterAt((c) => ![col1, col2].contains(c));
   }
 
   /**
@@ -682,8 +684,8 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    *
    * @param n number of columns to extract
    */
-  headCol(int n) =>
-      new Frame.vecsIndex(values.sublist(0, n), rowIx, colIx.head(n));
+  headCol(int n) => new Frame.vecsIndex(
+      values.sublist(0, n), rowIx, colIx.head(n), values.scalarTag);
 
   /**
    * Extract last n columns
@@ -715,7 +717,7 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
   Series<CX, T> last(RX k) {
     var loc = rowIx.getLast(k);
     if (loc == -1) {
-      return new Series<CX, T>.empty();
+      return new Series<CX, T>.empty(values.scalarTag, colIx.scalarTag);
     } else {
       rowAt(loc);
     }
@@ -753,13 +755,15 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    * Return empty series of type equivalent to a row of frame
    *
    */
-  Series<CX, T> emptyRow() => new Series<CX, T>.empty();
+  Series<CX, T> emptyRow() =>
+      new Series<CX, T>.empty(values.scalarTag, colIx.scalarTag);
 
   /**
    * Return empty series of type equivalent to a column of frame
    *
    */
-  Series<RX, T> emptyCol() => new Series<RX, T>.empty();
+  Series<RX, T> emptyCol() =>
+      new Series<RX, T>.empty(values.scalarTag, rowIx.scalarTag);
 
   /**
    * Create a new Frame whose rows are sorted according to the row
@@ -821,12 +825,12 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
     var j = locs.length - 1;
     while (j >= 0) {
       var tosort = rowAt(locs[j]).values.take(order);
-      var reordr = new Index(tosort, values.scalarTag).argSort();
+      var reordr = new Index(tosort.toArray(), values.scalarTag).argSort();
       order = array.take(order, reordr, () => throw "Logic error");
       j -= 1;
     }
 
-    return new Frame(values.take(order), rowIx, colIx.take(order));
+    return new Frame(values.takeAll(order), rowIx, colIx.take(order));
   }
 
   /**
@@ -838,7 +842,8 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    */
   Frame<RX, CX, T> sortedRowsBy /*[Q: ORD]*/ (
       /*Q*/ dynamic f(Series<CX, T> arg)) {
-    List<int> perm = array.range(0, numRows).sortBy((int i) => f(rowAt(i)));
+    List<int> perm = array.range(0, numRows)
+      ..sort((int i, int j) => f(rowAt(i)).compareTo(rowAt(j)));
     return rowAtTake(perm);
   }
 
@@ -851,7 +856,8 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    */
   Frame<RX, CX, T> sortedColsBy /*[Q: ORD]*/ (
       /*Q*/ dynamic f(Series<RX, T> arg)) {
-    List<int> perm = array.range(0, numCols).sortBy((int i) => f(colAt(i)));
+    List<int> perm = array.range(0, numCols)
+      ..sort((int i, int j) => f(colAt(i)).compareTo(f(colAt(j))));
     return colAtTake(perm);
   }
 
@@ -859,18 +865,35 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    * Map over each triple (r, c, v) in the Frame, returning a new frame from the resulting
    * triples.
    */
-  Frame<SX, DX, U> map /*[SX: ST: ORD, DX: ST: ORD, U: ST]*/ (
-      /*(SX, DX, U)*/ f(/*(RX, CX, T)*/ arg)) {
-//    Series(toSeq.map(f).map { case (sx, dx, u) => ((sx, dx) -> u) } : _*).pivot
+  Frame /*<SX, DX, U>*/ map /*[SX: ST: ORD, DX: ST: ORD, U: ST]*/ (
+      util.Tuple3 /*(SX, DX, U)*/ f(/*(RX, CX, T)*/ arg),
+      ScalarTag scx,
+      ScalarTag sct) {
+    return new Series.fromTuples(
+        toSeq().map(f).map((tup) {
+          var sx = tup.value1, dx = tup.value2, u = tup.value3;
+          return (sx, dx) => u;
+        } /*: _**/),
+        scx,
+        sct).pivot();
   }
 
   /**
    * Map over each triple (r, c, v) in the Frame, flattening results, and returning a new frame from
    * the resulting triples.
    */
-  Frame<SX, DX, U> flatMap /*[SX: ST: ORD, DX: ST: ORD, U: ST]*/ (
-      Traversable /*[(SX, DX, U)]*/ f(/*(RX, CX, T)*/ arg)) {
-//    Series(toSeq.flatMap(f).map { case (sx, dx, u) => ((sx, dx) -> u) } : _*).pivot
+  Frame /*<SX, DX, U>*/ flatMap /*[SX: ST: ORD, DX: ST: ORD, U: ST]*/ (
+      Iterable<util.Tuple3> /*Traversable[(SX, DX, U)]*/ f(
+          /*(RX, CX, T)*/ arg),
+      ScalarTag scx,
+      ScalarTag sct) {
+    return new Series.fromTuples(
+        toSeq().flatMap(f).map((tup) {
+          var sx = tup.value1, dx = tup.value2, u = tup.value3;
+          return (sx, dx) => u;
+        }),
+        scx,
+        sct).pivot();
   }
 
   /**
@@ -911,12 +934,15 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    * @tparam U The type of other frame values
    * @tparam V The result type of the function
    */
-  Frame<RX, CX, V> joinMap /*[U: ST, V: ST]*/ (Frame<RX, CX, U> other,
+  Frame<RX, CX, dynamic> joinMap /*[U: ST, V: ST]*/ (
+      Frame<RX, CX, dynamic> other, dynamic f(arg1, arg2), ScalarTag stv,
       [JoinType rhow = JoinType.LeftJoin,
       JoinType chow = JoinType.RightJoin]) /*(V f((T, U) arg))*/ {
-    var l, r = align(other, rhow, chow);
-//    var result = l.values.zip(r.values).map { case (v1, v2) => VecImpl.zipMap(v1, v2)(f) };
-    return new Frame(result, l.rowIx, l.colIx);
+    var algn = align(other, rhow, chow);
+    var result = zip([algn.left.values, algn.right.values]).map((z) {
+      return VecImpl.zipMap(z[0], z[1], f, stv);
+    });
+    return new Frame(result, algn.left.rowIx, algn.left.colIx);
   }
 
   /**
@@ -952,8 +978,10 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    * @tparam SX Type of index of result series of function
    */
   Frame /*<SX, CX, U>*/ transform /*[U: ST, SX: ST: ORD]*/ (
-          Series /*<SX, U>*/ f(Series<RX, T> arg)) =>
-      new Frame.column(values.map((v) => f(new Series(v, rowIx))), colIx);
+      Series /*<SX, U>*/ f(Series<RX, T> arg), ScalarTag srx, ScalarTag stu) {
+    return new Frame.seriesCol(
+        values.map((v) => f(new Series(v, rowIx))), colIx, srx, stu);
+  }
 
   // groupBy functionality (on rows)
 
@@ -1033,11 +1061,11 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    * @param pred Series[_, Boolean] (or Vec[Boolean] which will implicitly convert)
    */
   Frame<RX, CX, T> where(Series<dynamic, bool> pred) {
-    var newVals = values.zipWithIndex
-        .flatMap((z) => (pred.values(z._2)) ? Seq(z._1) : Seq.empty[Vec[T]]);
-    var newIdx =
-        VecImpl.where(new Vec(this.colIx.toArray_()))(pred.values.toArray);
-    return new Frame(newVals, rowIx, new Index(newIdx));
+    var newVals = util.flatten(enumerate(values)
+        .map((iv) => (pred.values[iv.index]) ? [iv.value] : []));
+    var newIdx = VecImpl.where(
+        new Vec(this.colIx.toArray_(), colIx.scalarTag), pred.values.toArray());
+    return new Frame(newVals, rowIx, new Index.fromVec(newIdx));
   }
 
   /**
@@ -1073,14 +1101,16 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    * column index
    * @param pred Predicate function from CX => Boolean
    */
-  filterIx(bool pred(CX arg)) => where(colIx.toVec().map(pred));
+  Frame<RX, CX, T> filterIx(bool pred(CX arg)) =>
+      where(Series.fromVec(colIx.toVec().map(pred, ScalarTag.stBool)));
 
   /**
    * Return Frame whose columns satisfy a predicate function operating on the
    * column index offset
    * @param pred Predicate function from CX => Boolean
    */
-  filterAt(bool pred(int arg)) => where(vec.range(0, numCols).map(pred));
+  filterAt(bool pred(int arg)) =>
+      where(Series.fromVec(vec.vrange(0, numCols).map(pred, ScalarTag.stBool)));
 
   /**
    * Return Frame excluding any of those columns which have an NA value
@@ -1198,7 +1228,7 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
       [JoinType how = JoinType.LeftJoin]) {
     var resultingFrame = join(other, how);
     var newColIndex = colIx.concat(other.colIx);
-    resultingFrame.setColIndex(newColIndex);
+    return resultingFrame.setColIndex(newColIndex);
   }
 
   /**
@@ -1271,9 +1301,9 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
     var cJoin = colIx.join(other.colIx, chow);
 
     MatCols /*[T]*/ lvals =
-        cJoin.lTake != null ? values.take(cJoin.lTake) : values;
+        cJoin.lTake != null ? values.takeAll(cJoin.lTake) : values;
     MatCols /*[U]*/ rvals =
-        cJoin.rTake != null ? other.values.take(cJoin.rTake) : other.values;
+        cJoin.rTake != null ? other.values.takeAll(cJoin.rTake) : other.values;
 
     var lvecs = range(lvals.length).map((i) {
       return rJoin.lTake != null ? lvals[i].take(rJoin.lTake) : lvals[i];
@@ -1406,18 +1436,18 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
       /*ORD<O2>*/ ord2,
       /*ST<O1>*/ m1,
       /*ST<O2>*/ m2) {
-    /*implicit*/ ordV() => stkr.ord;
-    /*implicit*/ clmV() => stkr.tag;
+//    /*implicit*/ ordV() => stkr.ord;
+//    /*implicit*/ clmV() => stkr.tag;
 
-    var lft,
-        rgt = splt(rowIx); // lft = row index w/o pivot level; rgt = pivot level
+    var sp =
+        splt.call(rowIx); // lft = row index w/o pivot level; rgt = pivot level
 
-    var rix = lft.uniques; // Final row index
-    var uix = rgt.uniques;
-    var cix = stkr(
+    var rix = sp.left.uniques(); // Final row index
+    var uix = sp.right.uniques();
+    var cix = stkr.call(
         colIx, uix); // Final col index (colIx stacked w/unique pivot labels)
 
-    var grps = new IndexGrouper(rgt, false)
+    var grps = new IndexGrouper(sp.right, false)
         .groups; // Group by pivot label. Each unique label will get its
     //   own column in the final frame.
     if (values.length > 0) {
@@ -1429,16 +1459,17 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
 
       for (var /*(_,*/ taker in grps) {
         // For each pivot label grouping,
-        var gIdx = lft.take(taker); //   use group's (lft) row index labels
+        var gIdx =
+            sp.left.take(taker.taker); //   use group's (lft) row index labels
         var ixer = rix.join(gIdx); //   to compute map to final (rix) locations;
 
         for (var currVec in values) {
           // For each column vec of original frame
           var vals = currVec.take(
-              taker); //   take values corresponding to current pivot label
-          var v = ixer.rTake
-              .map((a) => vals.take(a))
-              .getOrElse(vals); //   map values to be in correspondence to rix
+              taker.taker); //   take values corresponding to current pivot label
+          var v = ixer.rTake != null
+              ? vals.take(ixer.rTake)
+              : vals; //   map values to be in correspondence to rix
           result[loc] = v; //   and save vec in array.
 
           loc += len; // Increment offset into result array
@@ -1451,7 +1482,7 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
 
       return new Frame /*<O1, V, T>*/ (result, rix, cix);
     } else {
-      return new Frame.empty /*<O1, V, T>*/ ();
+      return new Frame.empty /*<O1, V, T>*/ (m1, stkr.tag, values.scalarTag);
     }
   }
 
@@ -1502,26 +1533,30 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    * See transform; operates row-wise
    */
   Frame /*<RX, SX, U>*/ rtransform /*[U: ST, SX: ST: ORD]*/ (
-          Series /*<SX, U>*/ f(Series<CX, T> arg)) =>
-      transpose().transform(f).transpose();
+          Series /*<SX, U>*/ f(Series<CX, T> arg),
+          ScalarTag srx,
+          ScalarTag stu) =>
+      transpose().transform(f, srx, stu).transpose();
 
   /**
    * See concat; operates row-wise
    */
-  rconcat /*[U, V]*/ (Frame /*<RX, CX, U>*/ other,
-          [JoinType how =
-              JoinType.OuterJoin]) /*(
+  Frame<RX, CX, T> rconcat /*[U, V]*/ (Frame /*<RX, CX, U>*/ other,
+      [JoinType how = JoinType.OuterJoin]) {
+    /*(
     implicit wd1: Promoter[T, U, V], mu: ST[U], md: ST[V])*/
-      =>
-      transpose().concat(other.transpose(), how).transpose();
+    return transpose().concat(other.transpose(), how).transpose();
+  }
 
   /**
    * See where; operates row-wise
    */
   Frame<RX, CX, T> rwhere(Series<dynamic, bool> pred) {
     var predv = pred.values;
-    return new Frame(new MatCols(values.map((v) => v.where(predv))),
-        new Index(rowIx.toVec().where(predv)), colIx);
+    return new Frame(
+        new MatCols(values.map((v) => v.where(predv)), values.scalarTag),
+        new Index.fromVec(rowIx.toVec().where(predv)),
+        colIx);
   }
 
   /**
@@ -1539,13 +1574,13 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    * See filterIx; operates row-wise
    */
   rfilterIx(bool pred(RX arg)) =>
-      rwhere(rowIx.toVec().map(pred, ScalarTag.stBool));
+      rwhere(Series.fromVec(rowIx.toVec().map(pred, ScalarTag.stBool)));
 
   /**
    * See filterAt; operates row-wise
    */
-  rfilterAt(bool pred(int arg)) =>
-      rwhere(vec.range(0, numRows).map(pred, ScalarTag.stBool));
+  rfilterAt(bool pred(int arg)) => rwhere(
+      Series.fromVec(vec.vrange(0, numRows).map(pred, ScalarTag.stBool)));
 
   /**
    * See joinS; operates row-wise
@@ -1643,11 +1678,13 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
    * in row-major order.
    */
   Iterable<FrameTriple<RX, CX, T>> /*[(RX, CX, T)]*/ toSeq() {
-    return zip([range(0, numRows), rowIx.toSeq()]).flatMap((i, rx) {
-      return rowAt(i).toSeq().map((cx, t) {
+    return util.flatten(zip([range(0, numRows), rowIx.toSeq()]).map((z) {
+      var i = z[0], rx = z[1];
+      return rowAt(i).toSeq().map((tup) {
+        var cx = tup.value1, t = tup.value2;
         return new FrameTriple._(rx, cx, t);
       });
-    });
+    }));
   }
 
   // ------------------------------------------------------
@@ -1706,7 +1743,7 @@ class Frame /*[RX: ST: ORD, CX: ST: ORD, T: ST]*/ <RX, CX,
       }
 
       // recalls whether we printed a column's label at level L-1
-      var prevColMask = new Map.fromIterable(clens, value: (_) => false);
+      var prevColMask = new Map.fromIterable(clens.keys, value: (_) => false);
       String prevColLabel = ""; // recalls previous column's label at level L
 
       // build columns header

@@ -610,8 +610,8 @@ abstract class Index<
    * @tparam C Type of elements in Vec
    */
 //  Index/*<C> apply[C: ST: ORD]*/(Vec<C> values) => implicitly[ST[C]].makeIndex(values);
-  factory Index.fromVec(Vec values, ScalarTag st) {
-    return st.makeIndex(values);
+  factory Index.fromVec(Vec values) {
+    return values.scalarTag.makeIndex(values);
   }
 
   /**
@@ -620,8 +620,7 @@ abstract class Index<
    * @tparam C Type of elements in array
    */
 //  Index<C> apply/*[C: ST: ORD]*/(Array<C> arr) => apply(Vec(arr));
-  factory Index(List arr, ScalarTag st) =>
-      new Index.fromVec(new Vec(arr, st), st);
+  factory Index(List arr, ScalarTag st) => new Index.fromVec(new Vec(arr, st));
 
   /**
    * Factory method to create an index from a sequence of elements, eg
@@ -651,7 +650,9 @@ abstract class Index<
    * @tparam I The type of the values input
    * @tparam O The type of the elements of the result index
    */
-//  Index<O> make/*[I, O]*/(I values)/*(implicit IndexMaker<I, O> ev)*/ => ev(values);
+  Index /*<O>*/ make /*[I, O]*/ (
+          /*I*/ List values) /*(implicit IndexMaker<I, O> ev)*/ =>
+      ev(values);
 
   /**
    * Factory method to create an Index from a recurrence rule between two
